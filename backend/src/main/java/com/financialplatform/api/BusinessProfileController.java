@@ -10,22 +10,20 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/business")
 public class BusinessProfileController {
-    private final BusinessProfileService profiles;
+  private final BusinessProfileService profiles;
 
-    public BusinessProfileController(BusinessProfileService profiles) {
-        this.profiles = profiles;
-    }
+  public BusinessProfileController(BusinessProfileService profiles) {
+    this.profiles = profiles;
+  }
 
-    @GetMapping
-    public BusinessProfileResponse get(Authentication authentication) {
-        return profiles.get(authentication.getName());
-    }
+  @GetMapping
+  public BusinessProfileResponse get(Authentication authentication) {
+    return profiles.get(authentication.getName());
+  }
 
-    @PutMapping
-    public BusinessProfileResponse update(
-            @Valid @RequestBody UpdateBusinessProfileRequest request,
-            Authentication authentication
-    ) {
-        return profiles.update(request, authentication.getName());
-    }
+  @PutMapping
+  public BusinessProfileResponse update(
+      @Valid @RequestBody UpdateBusinessProfileRequest request, Authentication authentication) {
+    return profiles.update(request, authentication.getName());
+  }
 }

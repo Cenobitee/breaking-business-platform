@@ -5,5 +5,5 @@ import com.financialplatform.domain.ExpenseCancellation;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ExpenseCancellationRepository extends JpaRepository<ExpenseCancellation, Long> {
-    boolean existsByExpense(Expense expense);
+  boolean existsByExpense(Expense expense);
 }

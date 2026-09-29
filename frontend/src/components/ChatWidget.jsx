@@ -2,8 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiRequest } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 
-const initials = (name) => name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase()
-const messageTime = (value) => new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+const initials = (name) =>
+  name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+const messageTime = (value) =>
+  new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
 export function ChatWidget() {
   const { user } = useAuth()
@@ -42,7 +49,9 @@ export function ChatWidget() {
       setContactsError('')
       setSelectedId((current) => current ?? result[0]?.id ?? null)
     } catch (requestError) {
-      setContactsError('Messaging is unavailable from the running backend. Restart Spring Boot in IntelliJ, then try again.')
+      setContactsError(
+        'Messaging is unavailable from the running backend. Restart Spring Boot in IntelliJ, then try again.',
+      )
     }
   }, [open])
 
@@ -51,7 +60,11 @@ export function ChatWidget() {
     try {
       const result = await apiRequest(`/messages/conversations/${selectedId}`)
       setMessages(result)
-      setContacts((current) => current.map((contact) => contact.id === selectedId ? { ...contact, unreadCount: 0 } : contact))
+      setContacts((current) =>
+        current.map((contact) =>
+          contact.id === selectedId ? { ...contact, unreadCount: 0 } : contact,
+        ),
+      )
       setError('')
     } catch (requestError) {
       setError(requestError.message)
@@ -61,7 +74,10 @@ export function ChatWidget() {
   useEffect(() => {
     loadContacts()
     const intervalId = window.setInterval(loadContacts, 5000)
-    return () => { window.clearInterval(intervalId); window.clearTimeout(noticeTimerRef.current) }
+    return () => {
+      window.clearInterval(intervalId)
+      window.clearTimeout(noticeTimerRef.current)
+    }
   }, [loadContacts])
 
   useEffect(() => {
@@ -123,8 +139,33 @@ export function ChatWidget() {
   if (!open) {
     return (
       <>
-        {incomingNotice && <button className="chat-incoming-toast" type="button" onClick={() => { setSelectedId(incomingNotice.id); setIncomingNotice(null); setOpen(true) }}><span>{initials(incomingNotice.fullName)}</span><div><strong>{incomingNotice.fullName}</strong><small>sent you a new message</small></div><em>Open</em></button>}
-        <button className="chat-launcher" type="button" onClick={() => { setIncomingNotice(null); setOpen(true) }} aria-label={`Open messages, ${unreadCount} unread`}>
+        {incomingNotice && (
+          <button
+            className="chat-incoming-toast"
+            type="button"
+            onClick={() => {
+              setSelectedId(incomingNotice.id)
+              setIncomingNotice(null)
+              setOpen(true)
+            }}
+          >
+            <span>{initials(incomingNotice.fullName)}</span>
+            <div>
+              <strong>{incomingNotice.fullName}</strong>
+              <small>sent you a new message</small>
+            </div>
+            <em>Open</em>
+          </button>
+        )}
+        <button
+          className="chat-launcher"
+          type="button"
+          onClick={() => {
+            setIncomingNotice(null)
+            setOpen(true)
+          }}
+          aria-label={`Open messages, ${unreadCount} unread`}
+        >
           <span aria-hidden="true">💬</span>
           {unreadCount > 0 && <strong>{unreadCount > 99 ? '99+' : unreadCount}</strong>}
         </button>
@@ -135,13 +176,24 @@ export function ChatWidget() {
   return (
     <aside className="chat-window" aria-label="Business messaging">
       <header className="chat-header">
-        <div><strong>Messages</strong><small>{user.businessName}</small></div>
-        <button type="button" onClick={() => setOpen(false)} aria-label="Close messages">×</button>
+        <div>
+          <strong>Messages</strong>
+          <small>{user.businessName}</small>
+        </div>
+        <button type="button" onClick={() => setOpen(false)} aria-label="Close messages">
+          ×
+        </button>
       </header>
       <div className="chat-content">
         <nav className="chat-contacts" aria-label="Message contacts">
           {contacts.map((contact) => (
-            <button className={selectedId === contact.id ? 'selected' : ''} type="button" key={contact.id} onClick={() => setSelectedId(contact.id)} title={`${contact.fullName} · ${contact.role}`}>
+            <button
+              className={selectedId === contact.id ? 'selected' : ''}
+              type="button"
+              key={contact.id}
+              onClick={() => setSelectedId(contact.id)}
+              title={`${contact.fullName} · ${contact.role}`}
+            >
               <span>{initials(contact.fullName)}</span>
               <small>{contact.fullName.split(' ')[0]}</small>
               {contact.unreadCount > 0 && <strong>{contact.unreadCount}</strong>}
@@ -155,31 +207,67 @@ export function ChatWidget() {
             <>
               <div className="chat-contact-heading">
                 <span>{initials(selected.fullName)}</span>
-                <div><strong>{selected.fullName}</strong><small>{selected.role}{selected.personalEmail ? ` · ${selected.personalEmail}` : ''}</small></div>
+                <div>
+                  <strong>{selected.fullName}</strong>
+                  <small>
+                    {selected.role}
+                    {selected.personalEmail ? ` · ${selected.personalEmail}` : ''}
+                  </small>
+                </div>
               </div>
               <div className="chat-messages" aria-live="polite">
                 {messages.map((message) => (
-                  <div className={`chat-message ${message.senderId === user.id ? 'mine' : 'theirs'}`} key={message.id}>
+                  <div
+                    className={`chat-message ${message.senderId === user.id ? 'mine' : 'theirs'}`}
+                    key={message.id}
+                  >
                     <p>{message.body}</p>
                     <div className="chat-message-footer">
-                      <small>{messageTime(message.sentAt)}{message.editedAt ? ' · edited' : ''}</small>
+                      <small>
+                        {messageTime(message.sentAt)}
+                        {message.editedAt ? ' · edited' : ''}
+                      </small>
                       {message.senderId === user.id && (
                         <span className="chat-message-actions">
-                          <button type="button" onClick={() => editMessage(message)}>Edit</button>
-                          <button type="button" onClick={() => deleteMessage(message)}>Delete</button>
+                          <button type="button" onClick={() => editMessage(message)}>
+                            Edit
+                          </button>
+                          <button type="button" onClick={() => deleteMessage(message)}>
+                            Delete
+                          </button>
                         </span>
                       )}
                     </div>
                   </div>
                 ))}
-                {messages.length === 0 && <p className="chat-empty">No messages yet. Start the conversation.</p>}
+                {messages.length === 0 && (
+                  <p className="chat-empty">No messages yet. Start the conversation.</p>
+                )}
                 <div ref={messageEndRef} />
               </div>
               {error && <p className="chat-error">{error}</p>}
               {selected.canSend ? (
                 <form className="chat-composer" onSubmit={send}>
-                  <textarea rows="1" maxLength="2000" placeholder="Write a message…" value={body} onChange={(event) => setBody(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit() } }} />
-                  <button type="submit" disabled={sending || !body.trim()} aria-label="Send message">➤</button>
+                  <textarea
+                    rows="1"
+                    maxLength="2000"
+                    placeholder="Write a message…"
+                    value={body}
+                    onChange={(event) => setBody(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault()
+                        event.currentTarget.form?.requestSubmit()
+                      }
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={sending || !body.trim()}
+                    aria-label="Send message"
+                  >
+                    ➤
+                  </button>
                 </form>
               ) : (
                 <p className="chat-disabled">Managers cannot message Investors.</p>
@@ -188,7 +276,11 @@ export function ChatWidget() {
           ) : (
             <div className="chat-empty">
               <p>{contactsError || 'Choose a contact to start messaging.'}</p>
-              {contactsError && <button type="button" onClick={loadContacts}>Try again</button>}
+              {contactsError && (
+                <button type="button" onClick={loadContacts}>
+                  Try again
+                </button>
+              )}
             </div>
           )}
         </section>

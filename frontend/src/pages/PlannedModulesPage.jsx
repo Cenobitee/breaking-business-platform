@@ -4,7 +4,9 @@ export function PlannedModulesPage() {
       <div>
         <p className="eyebrow">Owner access</p>
         <h1>Planned modules</h1>
-        <p>These modules are intentionally non-functional until their financial rules are approved.</p>
+        <p>
+          These modules are intentionally non-functional until their financial rules are approved.
+        </p>
       </div>
       <section>
         <article className="panel">

@@ -30,17 +30,21 @@ export function AuthProvider({ children }) {
   }
 
   async function login(email, password) {
-    return storeAuthentication(await apiRequest('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    }))
+    return storeAuthentication(
+      await apiRequest('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
+    )
   }
 
   async function register(businessName, fullName, email, password) {
-    return storeAuthentication(await apiRequest('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ businessName, fullName, email, password }),
-    }))
+    return storeAuthentication(
+      await apiRequest('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ businessName, fullName, email, password }),
+      }),
+    )
   }
 
   function logout() {

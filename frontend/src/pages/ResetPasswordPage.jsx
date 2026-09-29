@@ -44,16 +44,48 @@ export function ResetPasswordPage() {
         </div>
         <label>
           New password
-          <input type="password" required minLength="8" maxLength="72" autoComplete="new-password" disabled={!token || Boolean(message)} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            type="password"
+            required
+            minLength="8"
+            maxLength="72"
+            autoComplete="new-password"
+            disabled={!token || Boolean(message)}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </label>
         <label>
           Confirm new password
-          <input type="password" required minLength="8" maxLength="72" autoComplete="new-password" disabled={!token || Boolean(message)} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+          <input
+            type="password"
+            required
+            minLength="8"
+            maxLength="72"
+            autoComplete="new-password"
+            disabled={!token || Boolean(message)}
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
         </label>
-        {error && <p className="error-message" role="alert">{error}</p>}
-        {message && <p className="success-message" role="status">{message}</p>}
-        {!message && <button type="submit" disabled={submitting || !token}>{submitting ? 'Saving…' : 'Save new password'}</button>}
-        <p className="auth-switch"><Link to="/login">Back to sign in</Link></p>
+        {error && (
+          <p className="error-message" role="alert">
+            {error}
+          </p>
+        )}
+        {message && (
+          <p className="success-message" role="status">
+            {message}
+          </p>
+        )}
+        {!message && (
+          <button type="submit" disabled={submitting || !token}>
+            {submitting ? 'Saving…' : 'Save new password'}
+          </button>
+        )}
+        <p className="auth-switch">
+          <Link to="/login">Back to sign in</Link>
+        </p>
       </form>
     </main>
   )

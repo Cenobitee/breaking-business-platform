@@ -42,19 +42,43 @@ export function LoginPage() {
         </div>
         <label>
           Email
-          <input type="email" required autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            type="email"
+            required
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </label>
         <label>
           Password
-          <input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </label>
         <div className="auth-inline-link">
           <Link to="/forgot-password">Forgot password?</Link>
         </div>
-        {location.state?.notice && <p className="success-message" role="status">{location.state.notice}</p>}
-        {error && <p className="error-message" role="alert">{error}</p>}
-        <button type="submit" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in'}</button>
-        <p className="auth-switch">New business? <Link to="/signup">Create an Owner profile</Link></p>
+        {location.state?.notice && (
+          <p className="success-message" role="status">
+            {location.state.notice}
+          </p>
+        )}
+        {error && (
+          <p className="error-message" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" disabled={submitting}>
+          {submitting ? 'Signing in…' : 'Sign in'}
+        </button>
+        <p className="auth-switch">
+          New business? <Link to="/signup">Create an Owner profile</Link>
+        </p>
       </form>
     </main>
   )

@@ -55,7 +55,10 @@ export function App() {
             </Route>
             <Route element={<ProtectedRoute roles={['OWNER', 'INVESTOR']} />}>
               <Route path="/investor" element={<InvestorDashboard />} />
-              <Route path="/investor/investments" element={<InvestorDashboard view="investments" />} />
+              <Route
+                path="/investor/investments"
+                element={<InvestorDashboard view="investments" />}
+              />
               <Route path="/investor/history" element={<InvestorDashboard view="history" />} />
             </Route>
             <Route element={<ProtectedRoute roles={['OWNER']} />}>

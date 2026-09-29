@@ -39,32 +39,77 @@ export function SignupPage() {
         <div>
           <p className="eyebrow">Create a business</p>
           <h1>Owner profile</h1>
-          <p>Create your business in Breaking Business. You can add Managers and Investors after signing in.</p>
+          <p>
+            Create your business in Breaking Business. You can add Managers and Investors after
+            signing in.
+          </p>
         </div>
         <label>
           Business name
-          <input required maxLength="160" autoComplete="organization" value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+          <input
+            required
+            maxLength="160"
+            autoComplete="organization"
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
+          />
         </label>
         <label>
           Full name
-          <input required maxLength="120" autoComplete="name" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <input
+            required
+            maxLength="120"
+            autoComplete="name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
         </label>
         <label>
           Email
-          <input type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </label>
         <label>
           Password
-          <input type="password" required minLength="8" maxLength="72" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            type="password"
+            required
+            minLength="8"
+            maxLength="72"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
           <span className="field-hint">Use at least 8 characters.</span>
         </label>
         <label>
           Confirm password
-          <input type="password" required minLength="8" maxLength="72" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+          <input
+            type="password"
+            required
+            minLength="8"
+            maxLength="72"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
         </label>
-        {error && <p className="error-message" role="alert">{error}</p>}
-        <button type="submit" disabled={submitting}>{submitting ? 'Creating business…' : 'Create business and owner'}</button>
-        <p className="auth-switch">Already registered? <Link to="/login">Sign in</Link></p>
+        {error && (
+          <p className="error-message" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" disabled={submitting}>
+          {submitting ? 'Creating business…' : 'Create business and owner'}
+        </button>
+        <p className="auth-switch">
+          Already registered? <Link to="/login">Sign in</Link>
+        </p>
       </form>
     </main>
   )

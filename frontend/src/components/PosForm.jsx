@@ -15,7 +15,11 @@ export function PosForm({ onSaleCreated }) {
     try {
       const sale = await apiRequest('/sales', {
         method: 'POST',
-        body: JSON.stringify({ itemName: itemName.trim(), unitPrice: Number(unitPrice), quantity: Number(quantity) }),
+        body: JSON.stringify({
+          itemName: itemName.trim(),
+          unitPrice: Number(unitPrice),
+          quantity: Number(quantity),
+        }),
       })
       setMessage({ type: 'success', text: `Sale #${sale.id} recorded: ৳${sale.total}` })
       setItemName('')
@@ -75,7 +79,11 @@ export function PosForm({ onSaleCreated }) {
           {submitting ? 'Recording…' : 'Record sale'}
         </button>
       </form>
-      {message && <p className={message.type === 'error' ? 'error-message' : 'success-message'}>{message.text}</p>}
+      {message && (
+        <p className={message.type === 'error' ? 'error-message' : 'success-message'}>
+          {message.text}
+        </p>
+      )}
     </section>
   )
 }
