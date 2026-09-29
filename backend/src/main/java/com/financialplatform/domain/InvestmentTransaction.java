@@ -22,6 +22,9 @@ public class InvestmentTransaction {
   @Column(nullable = false, updatable = false, precision = 16, scale = 2)
   private BigDecimal amount;
 
+  @Column(name = "profit_percentage", nullable = false, updatable = false, precision = 5, scale = 2)
+  private BigDecimal profitPercentage;
+
   @Column(name = "invested_at", nullable = false, updatable = false)
   private Instant investedAt;
 
@@ -35,6 +38,7 @@ public class InvestmentTransaction {
     this.request = request;
     this.investor = request.getInvestor();
     this.amount = request.getAmount();
+    this.profitPercentage = request.getProfitPercentage();
     this.investedAt = investedAt;
     this.approvedBy = owner;
   }
@@ -53,6 +57,10 @@ public class InvestmentTransaction {
 
   public Instant getInvestedAt() {
     return investedAt;
+  }
+
+  public BigDecimal getProfitPercentage() {
+    return profitPercentage;
   }
 
   public AppUser getApprovedBy() {

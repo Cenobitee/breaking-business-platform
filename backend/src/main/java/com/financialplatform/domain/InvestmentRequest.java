@@ -18,6 +18,9 @@ public class InvestmentRequest {
   @Column(nullable = false, updatable = false, precision = 16, scale = 2)
   private BigDecimal amount;
 
+  @Column(name = "profit_percentage", nullable = false, updatable = false, precision = 5, scale = 2)
+  private BigDecimal profitPercentage;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 20)
   private InvestmentRequestStatus status = InvestmentRequestStatus.PENDING;
@@ -34,9 +37,10 @@ public class InvestmentRequest {
 
   protected InvestmentRequest() {}
 
-  public InvestmentRequest(AppUser investor, BigDecimal amount) {
+  public InvestmentRequest(AppUser investor, BigDecimal amount, BigDecimal profitPercentage) {
     this.investor = investor;
     this.amount = amount;
+    this.profitPercentage = profitPercentage;
   }
 
   public Long getId() {
@@ -49,6 +53,10 @@ public class InvestmentRequest {
 
   public BigDecimal getAmount() {
     return amount;
+  }
+
+  public BigDecimal getProfitPercentage() {
+    return profitPercentage;
   }
 
   public InvestmentRequestStatus getStatus() {

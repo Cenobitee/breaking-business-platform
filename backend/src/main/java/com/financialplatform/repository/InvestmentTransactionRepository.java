@@ -16,6 +16,11 @@ public interface InvestmentTransactionRepository
   List<InvestmentTransaction> findByInvestorOrderByInvestedAtDesc(AppUser investor);
 
   @Query(
+      "select t from InvestmentTransaction t where t.investor = :investor and not exists"
+          + " (select r.id from InvestmentRemoval r where r.transaction = t) order by t.investedAt")
+  List<InvestmentTransaction> findActiveByInvestor(@Param("investor") AppUser investor);
+
+  @Query(
       "select coalesce(sum(t.amount), 0) from InvestmentTransaction t where t.investor.business ="
           + " :business and not exists (select r.id from InvestmentRemoval r where r.transaction ="
           + " t)")

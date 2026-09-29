@@ -8,6 +8,7 @@ import java.time.Instant;
 public record InvestmentHistoryResponse(
     Long id,
     BigDecimal amount,
+    BigDecimal profitPercentage,
     Instant investedAt,
     String approvedBy,
     String status,
@@ -22,6 +23,7 @@ public record InvestmentHistoryResponse(
     return new InvestmentHistoryResponse(
         transaction.getId(),
         transaction.getAmount(),
+        transaction.getProfitPercentage(),
         transaction.getInvestedAt(),
         transaction.getApprovedBy().getFullName(),
         removal == null ? "INVESTED" : "REMOVED",

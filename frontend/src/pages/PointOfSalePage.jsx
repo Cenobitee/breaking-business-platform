@@ -30,6 +30,9 @@ export function PointOfSalePage() {
         apiRequest('/analytics/operations'),
       ])
       setProducts(catalog)
+      setQuantities((current) =>
+        Object.fromEntries(catalog.map((product) => [product.id, current[product.id] ?? 1])),
+      )
       setAnalytics(summary)
       setError('')
     } catch (requestError) {
@@ -123,7 +126,7 @@ export function PointOfSalePage() {
       await load()
       window.dispatchEvent(new Event('financial-platform-sale-updated'))
       window.dispatchEvent(new Event('financial-platform-stock-updated'))
-      setQuantities((current) => ({ ...current, [product.id]: '' }))
+      setQuantities((current) => ({ ...current, [product.id]: 1 }))
       setNotice(
         `${saleQuantity} × ${product.name} sold. ${money(sale.total)} was added to revenue and all financial analytics.`,
       )
@@ -282,7 +285,7 @@ export function PointOfSalePage() {
         </div>
         <div className="product-tap-grid">
           {products.map((product) => {
-            const productQuantity = quantities[product.id] ?? ''
+            const productQuantity = quantities[product.id] ?? 1
             const saleQuantity = Number(productQuantity)
             const validQuantity = Number.isInteger(saleQuantity) && saleQuantity >= 1
             return (
@@ -297,7 +300,6 @@ export function PointOfSalePage() {
                     min="1"
                     max={product.stockQuantity}
                     step="1"
-                    placeholder="Enter quantity"
                     value={productQuantity}
                     disabled={product.stockQuantity === 0}
                     onChange={(event) =>

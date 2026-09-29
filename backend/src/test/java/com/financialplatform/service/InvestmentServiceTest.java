@@ -10,11 +10,13 @@ import static org.mockito.Mockito.when;
 import com.financialplatform.domain.AppUser;
 import com.financialplatform.domain.Business;
 import com.financialplatform.domain.InvestmentRemoval;
+import com.financialplatform.domain.InvestmentPackage;
 import com.financialplatform.domain.InvestmentRequest;
 import com.financialplatform.domain.InvestmentRequestStatus;
 import com.financialplatform.domain.InvestmentTransaction;
 import com.financialplatform.domain.Role;
 import com.financialplatform.repository.InvestmentHistoryPurgeRepository;
+import com.financialplatform.repository.InvestmentPackageRepository;
 import com.financialplatform.repository.InvestmentRemovalRepository;
 import com.financialplatform.repository.InvestmentRequestRepository;
 import com.financialplatform.repository.InvestmentTransactionRepository;
@@ -35,6 +37,7 @@ class InvestmentServiceTest {
   @Mock InvestmentRemovalRepository removals;
   @Mock UserRepository users;
   @Mock InvestmentHistoryPurgeRepository historyPurge;
+  @Mock InvestmentPackageRepository packages;
 
   @Test
   void investorCreatesAPendingRequest() {
@@ -42,10 +45,15 @@ class InvestmentServiceTest {
     AppUser investor =
         new AppUser("Investor", "investor@example.com", "hash", Role.INVESTOR, business);
     when(users.findByEmailIgnoreCase("investor@example.com")).thenReturn(Optional.of(investor));
+    when(packages.findByBusinessAndAmount(business, new BigDecimal("25000.00")))
+        .thenReturn(
+            Optional.of(
+                new InvestmentPackage(
+                    business, new BigDecimal("25000.00"), new BigDecimal("20.00"))));
     when(requests.save(any(InvestmentRequest.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge);
+    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
     var response = service.requestInvestment(new BigDecimal("25000.00"), "investor@example.com");
 
     assertThat(response.amount()).isEqualByComparingTo("25000.00");
@@ -59,13 +67,14 @@ class InvestmentServiceTest {
     AppUser investor =
         new AppUser("Investor", "investor@example.com", "hash", Role.INVESTOR, business);
     AppUser owner = new AppUser("Owner", "owner@example.com", "hash", Role.OWNER, business);
-    InvestmentRequest request = new InvestmentRequest(investor, new BigDecimal("50000.00"));
+    InvestmentRequest request =
+        new InvestmentRequest(investor, new BigDecimal("50000.00"), new BigDecimal("25.00"));
     when(requests.findForUpdateById(7L)).thenReturn(Optional.of(request));
     when(users.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
     when(transactions.save(any(InvestmentTransaction.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge);
+    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
     var response = service.approve(7L, "owner@example.com");
 
     ArgumentCaptor<InvestmentTransaction> captor =
@@ -85,12 +94,13 @@ class InvestmentServiceTest {
     AppUser investor =
         new AppUser("Investor", "investor@example.com", "hash", Role.INVESTOR, business);
     AppUser owner = new AppUser("Owner", "owner@example.com", "hash", Role.OWNER, business);
-    InvestmentRequest request = new InvestmentRequest(investor, new BigDecimal("1000.00"));
+    InvestmentRequest request =
+        new InvestmentRequest(investor, new BigDecimal("1000.00"), new BigDecimal("20.00"));
     request.approve(owner, Instant.now());
     when(requests.findForUpdateById(9L)).thenReturn(Optional.of(request));
     when(users.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge);
+    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
 
     assertThatThrownBy(() -> service.approve(9L, "owner@example.com"))
         .isInstanceOf(IllegalArgumentException.class)
@@ -103,11 +113,12 @@ class InvestmentServiceTest {
     AppUser investor =
         new AppUser("Investor", "investor@example.com", "hash", Role.INVESTOR, business);
     AppUser owner = new AppUser("Owner", "owner@example.com", "hash", Role.OWNER, business);
-    InvestmentRequest request = new InvestmentRequest(investor, new BigDecimal("20000.00"));
+    InvestmentRequest request =
+        new InvestmentRequest(investor, new BigDecimal("20000.00"), new BigDecimal("22.00"));
     when(requests.findForUpdateById(12L)).thenReturn(Optional.of(request));
     when(users.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge);
+    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
     service.deletePendingRequest(12L, "owner@example.com");
 
     verify(requests).delete(request);
@@ -119,12 +130,13 @@ class InvestmentServiceTest {
     AppUser investor =
         new AppUser("Investor", "investor@example.com", "hash", Role.INVESTOR, business);
     AppUser owner = new AppUser("Owner", "owner@example.com", "hash", Role.OWNER, business);
-    InvestmentRequest request = new InvestmentRequest(investor, new BigDecimal("20000.00"));
+    InvestmentRequest request =
+        new InvestmentRequest(investor, new BigDecimal("20000.00"), new BigDecimal("22.00"));
     request.approve(owner, Instant.now());
     when(requests.findForUpdateById(13L)).thenReturn(Optional.of(request));
     when(users.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge);
+    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
 
     assertThatThrownBy(() -> service.deletePendingRequest(13L, "owner@example.com"))
         .isInstanceOf(IllegalArgumentException.class)
@@ -138,7 +150,8 @@ class InvestmentServiceTest {
     AppUser investor =
         new AppUser("Investor", "investor@example.com", "hash", Role.INVESTOR, business);
     AppUser owner = new AppUser("Owner", "owner@example.com", "hash", Role.OWNER, business);
-    InvestmentRequest request = new InvestmentRequest(investor, new BigDecimal("12000.00"));
+    InvestmentRequest request =
+        new InvestmentRequest(investor, new BigDecimal("12000.00"), new BigDecimal("20.00"));
     request.approve(owner, Instant.now());
     InvestmentTransaction transaction =
         new InvestmentTransaction(request, owner, request.getApprovedAt());
@@ -148,7 +161,7 @@ class InvestmentServiceTest {
     when(removals.save(any(InvestmentRemoval.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge);
+    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
     var response = service.remove(15L, "owner@example.com");
 
     assertThat(response.status()).isEqualTo("REMOVED");
@@ -165,7 +178,7 @@ class InvestmentServiceTest {
     when(users.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
     when(historyPurge.purgeForBusiness(44L)).thenReturn(6);
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge);
+    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
 
     assertThat(service.deleteAllHistory("owner@example.com")).isEqualTo(6);
     verify(historyPurge).purgeForBusiness(44L);

@@ -3,6 +3,7 @@ package com.financialplatform.service;
 import com.financialplatform.api.dto.*;
 import com.financialplatform.domain.*;
 import com.financialplatform.repository.InvestmentHistoryPurgeRepository;
+import com.financialplatform.repository.InvestmentPackageRepository;
 import com.financialplatform.repository.InvestmentRemovalRepository;
 import com.financialplatform.repository.InvestmentRequestRepository;
 import com.financialplatform.repository.InvestmentTransactionRepository;
@@ -19,23 +20,27 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class InvestmentService {
+  private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
   private final InvestmentRequestRepository requests;
   private final InvestmentTransactionRepository transactions;
   private final InvestmentRemovalRepository removals;
   private final UserRepository users;
   private final InvestmentHistoryPurgeRepository historyPurge;
+  private final InvestmentPackageRepository packages;
 
   public InvestmentService(
       InvestmentRequestRepository requests,
       InvestmentTransactionRepository transactions,
       InvestmentRemovalRepository removals,
       UserRepository users,
-      InvestmentHistoryPurgeRepository historyPurge) {
+      InvestmentHistoryPurgeRepository historyPurge,
+      InvestmentPackageRepository packages) {
     this.requests = requests;
     this.transactions = transactions;
     this.removals = removals;
     this.users = users;
     this.historyPurge = historyPurge;
+    this.packages = packages;
   }
 
   @Transactional
@@ -43,7 +48,37 @@ public class InvestmentService {
       BigDecimal requestedAmount, String investorEmail) {
     AppUser investor = requireUser(investorEmail);
     BigDecimal amount = requestedAmount.setScale(2, RoundingMode.UNNECESSARY);
-    return InvestmentRequestResponse.from(requests.save(new InvestmentRequest(investor, amount)));
+    ensureDefaultPackages(investor.getBusiness());
+    InvestmentPackage investmentPackage = packages
+        .findByBusinessAndAmount(investor.getBusiness(), amount)
+        .orElseThrow(() -> new IllegalArgumentException("Select one of the available investment packages"));
+    return InvestmentRequestResponse.from(
+        requests.save(new InvestmentRequest(investor, amount, investmentPackage.getProfitPercentage())));
+  }
+
+  @Transactional
+  public List<InvestmentPackageResponse> investmentPackages(String userEmail) {
+    AppUser user = requireUser(userEmail);
+    ensureDefaultPackages(user.getBusiness());
+    return packages.findByBusinessOrderByAmountAsc(user.getBusiness()).stream()
+        .map(InvestmentPackageResponse::from)
+        .toList();
+  }
+
+  @Transactional
+  public InvestmentPackageResponse updatePackage(
+      long packageId, BigDecimal requestedPercentage, String ownerEmail) {
+    AppUser owner = requireUser(ownerEmail);
+    InvestmentPackage investmentPackage =
+        packages.findById(packageId)
+            .filter(item -> item.getBusiness().getId().equals(owner.getBusiness().getId()))
+            .orElseThrow(() -> new IllegalArgumentException("Investment package not found"));
+    BigDecimal percentage = requestedPercentage.setScale(2, RoundingMode.HALF_UP);
+    if (percentage.signum() < 0 || percentage.compareTo(ONE_HUNDRED) > 0) {
+      throw new IllegalArgumentException("Profit percentage must be between 0 and 100");
+    }
+    investmentPackage.updateProfitPercentage(percentage);
+    return InvestmentPackageResponse.from(packages.save(investmentPackage));
   }
 
   @Transactional(readOnly = true)
@@ -144,6 +179,17 @@ public class InvestmentService {
     return removals.findByTransactionIn(investorTransactions).stream()
         .collect(
             Collectors.toMap(removal -> removal.getTransaction().getId(), Function.identity()));
+  }
+
+  private void ensureDefaultPackages(Business business) {
+    if (!packages.findByBusinessOrderByAmountAsc(business).isEmpty()) return;
+    packages.saveAll(
+        List.of(
+            new InvestmentPackage(business, new BigDecimal("10000.00"), new BigDecimal("20.00")),
+            new InvestmentPackage(business, new BigDecimal("20000.00"), new BigDecimal("22.00")),
+            new InvestmentPackage(business, new BigDecimal("50000.00"), new BigDecimal("25.00")),
+            new InvestmentPackage(
+                business, new BigDecimal("100000.00"), new BigDecimal("30.00"))));
   }
 
   private AppUser requireUser(String email) {

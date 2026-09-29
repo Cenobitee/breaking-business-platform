@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { ChatWidget } from './ChatWidget'
+import { TeamQuickTools } from '../pages/TeamStructurePage'
 
 export function AppLayout() {
   const { user, logout } = useAuth()
@@ -188,6 +189,16 @@ export function AppLayout() {
             )}
             {isOwner && <p className="manager-nav-label manager-nav-section-label">Ownership</p>}
             {isOwner && (
+              <NavLink to="/investors">
+                <span aria-hidden="true">♟</span>Investor profiles
+              </NavLink>
+            )}
+            {isOwner && (
+              <NavLink to="/investment-management">
+                <span aria-hidden="true">৳</span>Investment management
+              </NavLink>
+            )}
+            {isOwner && (
               <NavLink to="/investor">
                 <span aria-hidden="true">◉</span>Investor view
               </NavLink>
@@ -313,6 +324,7 @@ export function AppLayout() {
           </main>
         </div>
       </div>
+      {!isInvestor && <TeamQuickTools />}
       <ChatWidget />
     </div>
   )

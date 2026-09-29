@@ -30,6 +30,19 @@ public class InvestmentController {
     return investmentService.investorSummary(authentication.getName());
   }
 
+  @GetMapping("/packages")
+  public List<InvestmentPackageResponse> packages(Authentication authentication) {
+    return investmentService.investmentPackages(authentication.getName());
+  }
+
+  @PutMapping("/packages/{packageId}")
+  public InvestmentPackageResponse updatePackage(
+      @PathVariable long packageId,
+      @Valid @RequestBody UpdateInvestmentPackageRequest request,
+      Authentication authentication) {
+    return investmentService.updatePackage(packageId, request.profitPercentage(), authentication.getName());
+  }
+
   @GetMapping("/requests/pending")
   public List<InvestmentRequestResponse> pendingRequests(Authentication authentication) {
     return investmentService.pendingRequests(authentication.getName());

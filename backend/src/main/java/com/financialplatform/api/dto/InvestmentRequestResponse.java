@@ -10,6 +10,7 @@ public record InvestmentRequestResponse(
     String investorName,
     String investorEmail,
     BigDecimal amount,
+    BigDecimal profitPercentage,
     InvestmentRequestStatus status,
     Instant requestedAt,
     Instant approvedAt) {
@@ -19,6 +20,7 @@ public record InvestmentRequestResponse(
         request.getInvestor().getFullName(),
         request.getInvestor().getEmail(),
         request.getAmount(),
+        request.getProfitPercentage(),
         request.getStatus(),
         request.getRequestedAt(),
         request.getApprovedAt());

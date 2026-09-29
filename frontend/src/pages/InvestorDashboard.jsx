@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 
@@ -9,9 +10,12 @@ const dateTime = (value) => (value ? new Date(value).toLocaleString('en-BD') : '
 
 export function InvestorDashboard({ view = 'overview' }) {
   const { user } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
   const isInvestor = user.role === 'INVESTOR'
   const [analytics, setAnalytics] = useState(null)
   const [investments, setInvestments] = useState(null)
+  const [packages, setPackages] = useState([])
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -19,12 +23,14 @@ export function InvestorDashboard({ view = 'overview' }) {
 
   const load = useCallback(async () => {
     try {
-      const [analyticsData, investmentData] = await Promise.all([
+      const [analyticsData, investmentData, packageData] = await Promise.all([
         apiRequest('/analytics/investor'),
         isInvestor ? apiRequest('/investments/me') : Promise.resolve(null),
+        apiRequest('/investments/packages'),
       ])
       setAnalytics(analyticsData)
       setInvestments(investmentData)
+      setPackages(packageData)
       setError('')
     } catch (requestError) {
       setError(requestError.message)
@@ -33,25 +39,40 @@ export function InvestorDashboard({ view = 'overview' }) {
 
   useEffect(() => {
     load()
+    const intervalId = window.setInterval(load, 10000)
+    return () => window.clearInterval(intervalId)
   }, [load])
 
-  async function requestInvestment(event) {
+  useEffect(() => {
+    if (location.state?.paymentNotice) {
+      setNotice(location.state.paymentNotice)
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [location.pathname, location.state, navigate])
+
+  function requestInvestment(event) {
     event.preventDefault()
-    setSubmitting(true)
+    setError('')
+    setNotice('')
+    const selectedPackage = packages.find(
+      (investmentPackage) => Number(investmentPackage.amount) === Number(amount),
+    )
+    if (!selectedPackage) return
+    navigate('/investor/payment', { state: { investmentPackage: selectedPackage } })
+  }
+
+  async function updatePackage(investmentPackage, percentage) {
     setError('')
     setNotice('')
     try {
-      await apiRequest('/investments/requests', {
-        method: 'POST',
-        body: JSON.stringify({ amount: Number(amount) }),
+      await apiRequest(`/investments/packages/${investmentPackage.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ profitPercentage: Number(percentage) }),
       })
-      setAmount('')
-      setNotice('Investment request sent to the owner for approval.')
+      setNotice(`${money(investmentPackage.amount)} package updated to ${percentage}%.`)
       await load()
     } catch (requestError) {
       setError(requestError.message)
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -63,6 +84,12 @@ export function InvestorDashboard({ view = 'overview' }) {
     (request) => request.status === 'PENDING',
   )
   const latestActivity = (investments?.history || [])[0]
+  const investorProfitRate = Number(analytics?.investorCombinedProfitPercentage || 0)
+  const investorRevenueShare = Number(analytics?.investorLifetimeRevenueShare || 0)
+  const investorExpenseShare = Number(analytics?.investorLifetimeExpenseShare || 0)
+  const investorNetGain = Number(analytics?.investorLifetimeNetProfit || 0)
+  const dailyProfit = Number(analytics?.investorTodayProfit || 0)
+  const monthlyProfit = Number(analytics?.investorCompletedMonthProfit || 0)
   const pageContent =
     view === 'investments'
       ? {
@@ -146,6 +173,74 @@ export function InvestorDashboard({ view = 'overview' }) {
             </section>
           )}
 
+          {isInvestor && view === 'overview' && (
+            <section className="investor-profit-periods" aria-label="Daily and monthly profit">
+              <article className="investor-daily-profit">
+                <div>
+                  <p className="eyebrow">Today’s activity</p>
+                  <h2>Daily profit</h2>
+                  <p>Calculated from today’s product sales after today’s expenses.</p>
+                </div>
+                <strong className={dailyProfit < 0 ? 'negative' : ''}>{money(dailyProfit)}</strong>
+                <small>Pending until the day closes</small>
+              </article>
+              <article className="investor-monthly-profit">
+                <div>
+                  <p className="eyebrow">Completed days this month</p>
+                  <h2>Monthly profit balance</h2>
+                  <p>Each daily profit is added automatically after that day ends.</p>
+                </div>
+                <strong className={monthlyProfit < 0 ? 'negative' : ''}>
+                  {money(monthlyProfit)}
+                </strong>
+                <span>
+                  Available for disbursement on{' '}
+                  {new Date(`${analytics.nextDisbursementDate}T00:00:00`).toLocaleDateString(
+                    'en-BD',
+                    { day: 'numeric', month: 'long', year: 'numeric' },
+                  )}
+                </span>
+              </article>
+            </section>
+          )}
+
+          {isInvestor && view === 'overview' && (
+            <section className="panel investor-profit-breakdown">
+              <div className="panel-title-row">
+                <div>
+                  <p className="eyebrow">Your calculated return</p>
+                  <h2>Profit after business expenses</h2>
+                </div>
+                <span className="investor-return-rate">
+                  {percent(investorProfitRate)} combined rate
+                </span>
+              </div>
+              <p className="investor-profit-explanation">
+                Only sales and expenses recorded after the Owner approved your investment are
+                included. Earlier business activity never changes your return.
+              </p>
+              <div className="investor-profit-equation">
+                <article>
+                  <small>Your share of sales revenue</small>
+                  <strong>{money(investorRevenueShare)}</strong>
+                </article>
+                <span>−</span>
+                <article>
+                  <small>Your share of expenses</small>
+                  <strong>{money(investorExpenseShare)}</strong>
+                </article>
+                <span>=</span>
+                <article className={investorNetGain < 0 ? 'negative' : 'positive'}>
+                  <small>Your estimated net gain</small>
+                  <strong>{money(investorNetGain)}</strong>
+                </article>
+              </div>
+              <small className="investor-profit-note">
+                Calculation: (total sales − total expenses) × your combined package rate.
+              </small>
+            </section>
+          )}
+
           {view === 'overview' && (
             <section className="investor-business-grid" aria-label="Business performance">
               <article>
@@ -206,26 +301,30 @@ export function InvestorDashboard({ view = 'overview' }) {
                   <div>
                     <p className="eyebrow">New investment</p>
                     <h2>Request to invest</h2>
-                    <p>
-                      Enter an amount and send it securely to the Owner. Your capital is not counted
-                      until the Owner approves it.
-                    </p>
+                    <p>Select a package set by the Owner. It is counted only after approval.</p>
                   </div>
                   <form className="investment-request-form" onSubmit={requestInvestment}>
-                    <label>
-                      Amount (৳)
-                      <input
-                        type="number"
-                        min="1"
-                        step="0.01"
-                        value={amount}
-                        onChange={(event) => setAmount(event.target.value)}
-                        placeholder="50000.00"
-                        required
-                      />
-                    </label>
-                    <button type="submit" disabled={submitting}>
-                      {submitting ? 'Sending…' : 'Request approval'}
+                    <div
+                      className="investment-package-options"
+                      role="radiogroup"
+                      aria-label="Investment package"
+                    >
+                      {packages.map((investmentPackage) => (
+                        <button
+                          type="button"
+                          key={investmentPackage.id}
+                          className={
+                            Number(amount) === Number(investmentPackage.amount) ? 'selected' : ''
+                          }
+                          onClick={() => setAmount(String(investmentPackage.amount))}
+                        >
+                          <strong>{money(investmentPackage.amount)}</strong>
+                          <span>{percent(investmentPackage.profitPercentage)} profit share</span>
+                        </button>
+                      ))}
+                    </div>
+                    <button type="submit" disabled={submitting || !amount}>
+                      {submitting ? 'Opening payment…' : 'Continue to payment'}
                     </button>
                   </form>
                 </section>
@@ -330,12 +429,43 @@ export function InvestorDashboard({ view = 'overview' }) {
           )}
 
           {!isInvestor && view === 'overview' && (
-            <section className="panel read-only-notice">
-              <h2>Owner overview</h2>
-              <p>
-                Individual investor requests are reviewed from the notification panel on the
-                Operations page.
-              </p>
+            <section className="panel owner-package-manager">
+              <div className="panel-title-row">
+                <div>
+                  <p className="eyebrow">Owner controls</p>
+                  <h2>Investment packages</h2>
+                  <p>Set the profit percentage offered for each fixed investment amount.</p>
+                </div>
+              </div>
+              <div className="owner-package-grid">
+                {packages.map((investmentPackage) => (
+                  <form
+                    key={investmentPackage.id}
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      updatePackage(investmentPackage, event.currentTarget.percentage.value)
+                    }}
+                  >
+                    <strong>{money(investmentPackage.amount)}</strong>
+                    <label>
+                      Profit percentage
+                      <div>
+                        <input
+                          name="percentage"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          defaultValue={Number(investmentPackage.profitPercentage)}
+                          required
+                        />
+                        <span>%</span>
+                      </div>
+                    </label>
+                    <button type="submit">Save percentage</button>
+                  </form>
+                ))}
+              </div>
             </section>
           )}
         </>

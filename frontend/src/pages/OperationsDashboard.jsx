@@ -15,17 +15,13 @@ export function OperationsDashboard() {
     sales: [],
     users: [],
     investmentRequests: [],
-    activeInvestments: [],
   })
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [deletingId, setDeletingId] = useState(null)
   const [approvingId, setApprovingId] = useState(null)
   const [deletingRequestId, setDeletingRequestId] = useState(null)
-  const [removingInvestmentId, setRemovingInvestmentId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [creatingStaff, setCreatingStaff] = useState(false)
-  const [deletingInvestmentHistory, setDeletingInvestmentHistory] = useState(false)
   const [newStaff, setNewStaff] = useState({
     fullName: '',
     email: '',
@@ -35,14 +31,13 @@ export function OperationsDashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [analytics, sales, users, investmentRequests, activeInvestments] = await Promise.all([
+      const [analytics, sales, users, investmentRequests] = await Promise.all([
         apiRequest('/analytics/operations'),
         apiRequest('/sales'),
         apiRequest('/users'),
         user.role === 'OWNER' ? apiRequest('/investments/requests/pending') : Promise.resolve([]),
-        user.role === 'OWNER' ? apiRequest('/investments/active') : Promise.resolve([]),
       ])
-      setData({ analytics, sales, users, investmentRequests, activeInvestments })
+      setData({ analytics, sales, users, investmentRequests })
       setError('')
     } catch (requestError) {
       setError(requestError.message)
@@ -96,49 +91,6 @@ export function OperationsDashboard() {
     }
   }
 
-  async function deleteSale(sale) {
-    const confirmed = window.confirm(
-      `Delete this ${sale.itemName} order for ${money(sale.total)}? It will be removed from revenue and order totals.`,
-    )
-    if (!confirmed) return
-
-    setDeletingId(sale.id)
-    setError('')
-    setNotice('')
-    try {
-      await apiRequest(`/sales/${sale.id}`, { method: 'DELETE' })
-      await load()
-      setNotice('Order deleted. The cancellation remains available in the financial audit history.')
-    } catch (requestError) {
-      setError(requestError.message)
-    } finally {
-      setDeletingId(null)
-    }
-  }
-
-  async function removeInvestment(investment) {
-    const confirmed = window.confirm(
-      `Remove ${money(investment.amount)} invested by ${investment.investorName}? The removal will be recorded permanently in the investor's history.`,
-    )
-    if (!confirmed) return
-
-    setRemovingInvestmentId(investment.id)
-    setError('')
-    setNotice('')
-    try {
-      await apiRequest(`/investments/${investment.id}/remove`, { method: 'POST' })
-      await load()
-      window.dispatchEvent(new Event('financial-platform-investments-updated'))
-      setNotice(
-        `${money(investment.amount)} was removed from active invested capital. The audit history was preserved.`,
-      )
-    } catch (requestError) {
-      setError(requestError.message)
-    } finally {
-      setRemovingInvestmentId(null)
-    }
-  }
-
   async function createStaffProfile(event) {
     event.preventDefault()
     setCreatingStaff(true)
@@ -158,29 +110,8 @@ export function OperationsDashboard() {
     }
   }
 
-  async function deleteInvestmentHistory() {
-    const confirmation = window.prompt(
-      `This permanently deletes every investment request and investment-history record for ${user.businessName}. Type DELETE to continue.`,
-    )
-    if (confirmation !== 'DELETE') return
-
-    setDeletingInvestmentHistory(true)
-    setError('')
-    setNotice('')
-    try {
-      const response = await apiRequest('/investments/history', { method: 'DELETE' })
-      await load()
-      window.dispatchEvent(new Event('financial-platform-investments-updated'))
-      setNotice(response.message)
-    } catch (requestError) {
-      setError(requestError.message)
-    } finally {
-      setDeletingInvestmentHistory(false)
-    }
-  }
-
   if (loading) return <p>Loading operations…</p>
-  const { analytics, sales, users, investmentRequests, activeInvestments } = data
+  const { analytics, sales, users, investmentRequests } = data
   const unitsSold = sales.reduce((sum, sale) => sum + Number(sale.quantity), 0)
   const productTotals = sales.reduce((totals, sale) => {
     totals[sale.itemName] = (totals[sale.itemName] || 0) + Number(sale.quantity)
@@ -515,79 +446,6 @@ export function OperationsDashboard() {
         <section className="panel">
           <div className="panel-title-row">
             <div>
-              <p className="eyebrow">Business funding</p>
-              <h2>Active investor capital</h2>
-            </div>
-          </div>
-          <p>
-            Removing an amount subtracts it from active capital but keeps a permanent record in the
-            Investor’s history.
-          </p>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Invested</th>
-                  <th>Investor</th>
-                  <th>Email</th>
-                  <th>Active amount</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeInvestments.map((investment) => (
-                  <tr key={investment.id}>
-                    <td>{dateTime(investment.investedAt)}</td>
-                    <td>{investment.investorName}</td>
-                    <td>{investment.investorEmail}</td>
-                    <td>{money(investment.amount)}</td>
-                    <td>
-                      <button
-                        className="danger table-action"
-                        type="button"
-                        disabled={removingInvestmentId === investment.id}
-                        onClick={() => removeInvestment(investment)}
-                      >
-                        {removingInvestmentId === investment.id ? 'Removing…' : 'Remove amount'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {activeInvestments.length === 0 && (
-                  <tr>
-                    <td colSpan="5">No active invested amounts.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <details className="owner-danger-details">
-            <summary>Investment history options</summary>
-            <div className="danger-zone">
-              <div>
-                <strong>Delete all investment history</strong>
-                <p>
-                  Permanently deletes requests, approvals, removals, and investment-history records
-                  for {user.businessName}.
-                </p>
-              </div>
-              <button
-                className="danger"
-                type="button"
-                disabled={deletingInvestmentHistory}
-                onClick={deleteInvestmentHistory}
-              >
-                {deletingInvestmentHistory ? 'Deleting…' : 'Delete all history'}
-              </button>
-            </div>
-          </details>
-        </section>
-      )}
-
-      {user.role === 'OWNER' && (
-        <section className="panel">
-          <div className="panel-title-row">
-            <div>
               <p className="eyebrow">Access management</p>
               <h2>Managers and investors</h2>
             </div>
@@ -673,55 +531,6 @@ export function OperationsDashboard() {
           ))}
         </ul>
       </section>
-      {user.role === 'OWNER' && (
-        <section className="panel dashboard-anchor" id="manager-reports">
-          <h2>Recent sales</h2>
-          <div className="table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Item</th>
-                  <th>Qty</th>
-                  <th>Unit price</th>
-                  <th>Total</th>
-                  <th>Operator</th>
-                  {user.role === 'OWNER' && <th>Action</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {sales.map((sale) => (
-                  <tr key={sale.id}>
-                    <td>{new Date(sale.createdAt).toLocaleString()}</td>
-                    <td>{sale.itemName}</td>
-                    <td>{sale.quantity}</td>
-                    <td>{money(sale.unitPrice)}</td>
-                    <td>{money(sale.total)}</td>
-                    <td>{sale.createdBy}</td>
-                    {user.role === 'OWNER' && (
-                      <td>
-                        <button
-                          className="danger table-action"
-                          type="button"
-                          disabled={deletingId === sale.id}
-                          onClick={() => deleteSale(sale)}
-                        >
-                          {deletingId === sale.id ? 'Deleting…' : 'Delete'}
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {sales.length === 0 && (
-                  <tr>
-                    <td colSpan={user.role === 'OWNER' ? 7 : 6}>No sales recorded yet.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
     </div>
   )
 }

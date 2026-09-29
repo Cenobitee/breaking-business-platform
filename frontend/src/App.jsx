@@ -23,6 +23,9 @@ import { UserProfilePage } from './pages/UserProfilePage'
 import { MoneyJournalPage } from './pages/MoneyJournalPage'
 import { BreakEvenPage } from './pages/BreakEvenPage'
 import { BudgetCheckPage } from './pages/BudgetCheckPage'
+import { InvestorDirectoryPage } from './pages/InvestorDirectoryPage'
+import { InvestmentManagementPage } from './pages/InvestmentManagementPage'
+import { InvestmentPaymentPage } from './pages/InvestmentPaymentPage'
 
 export function App() {
   return (
@@ -60,8 +63,11 @@ export function App() {
                 element={<InvestorDashboard view="investments" />}
               />
               <Route path="/investor/history" element={<InvestorDashboard view="history" />} />
+              <Route path="/investor/payment" element={<InvestmentPaymentPage />} />
             </Route>
             <Route element={<ProtectedRoute roles={['OWNER']} />}>
+              <Route path="/investors" element={<InvestorDirectoryPage />} />
+              <Route path="/investment-management" element={<InvestmentManagementPage />} />
               <Route path="/modules" element={<PlannedModulesPage />} />
               <Route path="/profile/:userId" element={<UserProfilePage />} />
             </Route>

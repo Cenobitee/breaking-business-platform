@@ -11,6 +11,7 @@ import com.financialplatform.repository.UserRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.Instant;
 import java.time.ZoneId;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,12 @@ public class AnalyticsService {
   @Transactional(readOnly = true)
   public InvestorAnalyticsResponse investorSummary(String userEmail) {
     AppUser user = users.findByEmailIgnoreCase(userEmail).orElseThrow();
+    LocalDate today = LocalDate.now(businessZone);
+    LocalDate monthStart = today.withDayOfMonth(1);
+    LocalDate nextMonthStart = monthStart.plusMonths(1);
+    var todayStart = today.atStartOfDay(businessZone).toInstant();
+    var tomorrowStart = today.plusDays(1).atStartOfDay(businessZone).toInstant();
+    var monthStartInstant = monthStart.atStartOfDay(businessZone).toInstant();
     BigDecimal initialCapital =
         money(
             investors
@@ -79,8 +86,83 @@ public class AnalyticsService {
                 .divide(initialCapital, 4, RoundingMode.HALF_UP)
                 .multiply(ONE_HUNDRED)
                 .setScale(2, RoundingMode.HALF_UP);
+    BigDecimal todayRevenue = money(sales.sumTotalBetween(user.getBusiness(), todayStart, tomorrowStart));
+    BigDecimal todayExpenses = money(expenses.sumForDay(user.getBusiness(), today));
+    BigDecimal todayNetProfit = money(todayRevenue.subtract(todayExpenses));
+    BigDecimal completedMonthRevenue =
+        money(sales.sumTotalBetween(user.getBusiness(), monthStartInstant, todayStart));
+    BigDecimal completedMonthExpenses =
+        money(expenses.sumBetween(user.getBusiness(), monthStart, today));
+    BigDecimal completedMonthNetProfit =
+        money(completedMonthRevenue.subtract(completedMonthExpenses));
+    BigDecimal investorCombinedRate = BigDecimal.ZERO;
+    BigDecimal investorTodayProfit = BigDecimal.ZERO;
+    BigDecimal investorCompletedMonthProfit = BigDecimal.ZERO;
+    BigDecimal investorLifetimeRevenueShare = BigDecimal.ZERO;
+    BigDecimal investorLifetimeExpenseShare = BigDecimal.ZERO;
+    Instant now = Instant.now();
+    if (user.getRole() == com.financialplatform.domain.Role.INVESTOR) {
+      for (var investment : investmentTransactions.findActiveByInvestor(user)) {
+        BigDecimal rate = investment.getProfitPercentage();
+        investorCombinedRate = investorCombinedRate.add(rate);
+        investorTodayProfit =
+            investorTodayProfit.add(
+                investorProfit(investment, later(investment.getInvestedAt(), todayStart), now));
+        investorCompletedMonthProfit =
+            investorCompletedMonthProfit.add(
+                investorProfit(
+                    investment,
+                    later(investment.getInvestedAt(), monthStartInstant),
+                    todayStart));
+        Instant lifetimeStart = investment.getInvestedAt();
+        if (lifetimeStart.isBefore(now)) {
+          BigDecimal revenueSinceApproval =
+              money(sales.sumTotalBetween(user.getBusiness(), lifetimeStart, now));
+          BigDecimal expensesSinceApproval =
+              money(expenses.sumCreatedBetween(user.getBusiness(), lifetimeStart, now));
+          investorLifetimeRevenueShare =
+              investorLifetimeRevenueShare.add(applyRate(revenueSinceApproval, rate));
+          investorLifetimeExpenseShare =
+              investorLifetimeExpenseShare.add(applyRate(expensesSinceApproval, rate));
+        }
+      }
+    }
     return new InvestorAnalyticsResponse(
-        initialCapital, revenue, totalExpenses, netProfit, margin, capitalHealth);
+        initialCapital,
+        revenue,
+        totalExpenses,
+        netProfit,
+        margin,
+        capitalHealth,
+        todayRevenue,
+        todayExpenses,
+        todayNetProfit,
+        completedMonthRevenue,
+        completedMonthExpenses,
+        completedMonthNetProfit,
+        money(investorCombinedRate),
+        money(investorTodayProfit),
+        money(investorCompletedMonthProfit),
+        money(investorLifetimeRevenueShare),
+        money(investorLifetimeExpenseShare),
+        money(investorLifetimeRevenueShare.subtract(investorLifetimeExpenseShare)),
+        nextMonthStart);
+  }
+
+  private BigDecimal investorProfit(
+      com.financialplatform.domain.InvestmentTransaction investment, Instant start, Instant end) {
+    if (!start.isBefore(end)) return BigDecimal.ZERO;
+    BigDecimal revenue = money(sales.sumTotalBetween(investment.getInvestor().getBusiness(), start, end));
+    BigDecimal costs = money(expenses.sumCreatedBetween(investment.getInvestor().getBusiness(), start, end));
+    return applyRate(revenue.subtract(costs), investment.getProfitPercentage());
+  }
+
+  private BigDecimal applyRate(BigDecimal amount, BigDecimal rate) {
+    return amount.multiply(rate).divide(ONE_HUNDRED, 2, RoundingMode.HALF_UP);
+  }
+
+  private Instant later(Instant first, Instant second) {
+    return first.isAfter(second) ? first : second;
   }
 
   private BigDecimal percentage(BigDecimal numerator, BigDecimal denominator) {
