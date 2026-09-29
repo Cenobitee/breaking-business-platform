@@ -101,10 +101,10 @@ export function AppLayout() {
               {!isInvestor && <NavLink to="/accounting/journal"><span aria-hidden="true">⇄</span>Money journal</NavLink>}
               {!isInvestor && <NavLink to="/accounting/break-even"><span aria-hidden="true">◎</span>Break-even</NavLink>}
               {!isInvestor && <NavLink to="/accounting/budgets"><span aria-hidden="true">▦</span>Budget check</NavLink>}
-              {isManager && <NavLink to="/manager/analytics"><span aria-hidden="true">▥</span>Analytics</NavLink>}
+              {!isInvestor && <NavLink to="/manager/analytics"><span aria-hidden="true">▥</span>Analytics</NavLink>}
               {isOwner && <p className="manager-nav-label manager-nav-section-label">People &amp; communication</p>}
               {!isInvestor && <NavLink to="/team"><span aria-hidden="true">♟</span>Team structure</NavLink>}
-              {isManager && <NavLink to="/manager/reports"><span aria-hidden="true">▤</span>Reports <small>Live</small></NavLink>}
+              {!isInvestor && <NavLink to="/manager/reports"><span aria-hidden="true">▤</span>Reports <small>Live</small></NavLink>}
               {!isInvestor && <NavLink to="/support"><span aria-hidden="true">?</span>Support <small>Live</small></NavLink>}
               {isOwner && <p className="manager-nav-label manager-nav-section-label">Ownership</p>}
               {isOwner && <NavLink to="/investor"><span aria-hidden="true">◉</span>Investor view</NavLink>}

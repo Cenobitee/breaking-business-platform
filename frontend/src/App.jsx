@@ -49,7 +49,7 @@ export function App() {
               <Route path="/team/:employeeId/edit" element={<EmployeeFormPage />} />
               <Route path="/support" element={<SupportPage />} />
             </Route>
-            <Route element={<ProtectedRoute roles={['MANAGER']} />}>
+            <Route element={<ProtectedRoute roles={['OWNER', 'MANAGER']} />}>
               <Route path="/manager/analytics" element={<ManagerAnalyticsPage />} />
               <Route path="/manager/reports" element={<ManagerReportsPage />} />
             </Route>

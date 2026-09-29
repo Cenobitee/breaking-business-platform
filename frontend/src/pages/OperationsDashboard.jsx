@@ -239,7 +239,7 @@ export function OperationsDashboard() {
         <section className="business-health-panel panel" aria-label="Business health">
           <div className="health-score-ring" style={{ '--health-score': `${healthScore * 3.6}deg` }}><span><strong>{healthScore}</strong><small>/100</small></span></div>
           <div className="health-summary"><p className="eyebrow">Business health today</p><h2>{healthLabel}</h2><p>This operational score combines sales activity, positive cash position, margin, and order value.</p><div className="health-status-row"><span className={analytics.orderCount ? 'good' : ''}>Orders <strong>{analytics.orderCount ? 'Active' : 'None yet'}</strong></span><span className={netAmount >= 0 && revenue ? 'good' : 'warning'}>Cash position <strong>{money(netAmount)}</strong></span><span className={margin > 0 ? 'good' : 'warning'}>Margin <strong>{margin.toFixed(1)}%</strong></span></div></div>
-          <a className="health-analytics-link" href="/manager/analytics">View detailed analytics <span>→</span></a>
+          <Link className="health-analytics-link" to="/manager/analytics">View detailed analytics <span>→</span></Link>
         </section>
       )}
 

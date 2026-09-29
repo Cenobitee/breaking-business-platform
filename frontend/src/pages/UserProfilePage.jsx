@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { apiRequest } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 
 export function UserProfilePage() {
   const { userId } = useParams()
+  const navigate = useNavigate()
+  const { logout } = useAuth()
   const ownerMode = Boolean(userId)
   const [profile, setProfile] = useState(null)
   const [form, setForm] = useState({ fullName: '', phone: '', contactEmail: '', address: '', profileImageDataUrl: null })
@@ -33,6 +36,14 @@ export function UserProfilePage() {
         ? { fullName: form.fullName, phone: form.phone, loginEmail: form.loginEmail }
         : { contactEmail: form.contactEmail, address: form.address, profileImageDataUrl: form.profileImageDataUrl, ...(profile.ownerEditingAllowed ? { fullName: form.fullName, phone: form.phone, loginEmail: form.loginEmail } : {}) }
       const updated = await apiRequest(ownerMode ? `/profile/members/${userId}` : '/profile/me', { method: 'PUT', body: JSON.stringify(body) })
+      if (!ownerMode && profile.ownerEditingAllowed && updated.loginEmail !== profile.loginEmail) {
+        logout()
+        navigate('/login', {
+          replace: true,
+          state: { notice: `Login email changed to ${updated.loginEmail}. Sign in again with the new email.` },
+        })
+        return
+      }
       setProfile(updated); setForm(updated); setNotice(ownerMode ? 'Name and phone number updated by Owner.' : 'Your personal profile was updated.')
       window.dispatchEvent(new Event('financial-platform-user-profile-updated'))
     } catch (requestError) { setError(requestError.message) }

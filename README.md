@@ -33,7 +33,7 @@ The Business Profile page lets the Owner maintain a logo, description, address, 
 
    ```bash
    cd backend
-   mvn spring-boot:run
+   mvn spring-boot:run -Dspring-boot.run.profiles=local
    ```
 
 3. Start the frontend (requires Node.js 20+):
@@ -46,7 +46,7 @@ The Business Profile page lets the Owner maintain a logo, description, address, 
 
 4. Open `http://localhost:5173`.
 
-Development users are created automatically under the **Irodori** business when the database contains no users:
+The `local` Spring profile creates development users automatically under the **Irodori** business when the database contains no users:
 
 | Role | Email | Password |
 |---|---|---|
@@ -54,7 +54,7 @@ Development users are created automatically under the **Irodori** business when 
 | Manager | `manager@example.com` | `ChangeMe123!` |
 | Investor | `investor@example.com` | `ChangeMe123!` |
 
-Change the seed credentials and JWT secret before any shared or production deployment. Environment variable names are documented in `.env.example`.
+The normal application profile is secure by default: it requires `JWT_SECRET`, does not expose password-reset tokens, and does not seed demonstration accounts. The `local` profile is only for classroom development and must not be used for a public deployment. Production environment variable names are documented in `.env.example`.
 
 ## API overview
 

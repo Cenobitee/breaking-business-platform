@@ -10,7 +10,7 @@ export function LoginPage() {
   const { user, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState('manager@example.com')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -51,6 +51,7 @@ export function LoginPage() {
         <div className="auth-inline-link">
           <Link to="/forgot-password">Forgot password?</Link>
         </div>
+        {location.state?.notice && <p className="success-message" role="status">{location.state.notice}</p>}
         {error && <p className="error-message" role="alert">{error}</p>}
         <button type="submit" disabled={submitting}>{submitting ? 'Signing in…' : 'Sign in'}</button>
         <p className="auth-switch">New business? <Link to="/signup">Create an Owner profile</Link></p>

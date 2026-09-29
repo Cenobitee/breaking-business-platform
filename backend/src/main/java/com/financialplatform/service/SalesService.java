@@ -55,7 +55,7 @@ public class SalesService {
         }
         AppUser operator = users.findByEmailIgnoreCase(userEmail).orElseThrow();
         if (request.productId() != null) {
-            catalogProduct = products.findById(request.productId()).orElseThrow(() -> new IllegalArgumentException("Product not found"));
+            catalogProduct = products.findForSaleById(request.productId()).orElseThrow(() -> new IllegalArgumentException("Product not found"));
             if (!catalogProduct.getBusiness().getId().equals(operator.getBusiness().getId())) throw new IllegalArgumentException("Product not found");
             catalogProduct.sell(request.quantity());
             productName = catalogProduct.getName(); unitPrice = catalogProduct.getUnitPrice();
