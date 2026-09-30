@@ -839,6 +839,30 @@ p {
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: thin;
+  scrollbar-color: rgba(151, 190, 165, 0.42) transparent;
+}
+.manager-side-nav::-webkit-scrollbar {
+  width: 6px;
+}
+.manager-side-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.manager-side-nav::-webkit-scrollbar-thumb {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgba(151, 190, 165, 0.42);
+  background-clip: padding-box;
+}
+.manager-side-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(151, 190, 165, 0.68);
+  background-clip: padding-box;
+}
+.manager-side-nav::-webkit-scrollbar-button,
+.manager-side-nav::-webkit-scrollbar-corner {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 .manager-side-nav a,
 .manager-settings-link {
