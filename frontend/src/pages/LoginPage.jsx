@@ -13,6 +13,7 @@ export function LoginPage() {
   const [email, setEmail] = useState('manager@example.com')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -23,7 +24,7 @@ export function LoginPage() {
     setSubmitting(true)
     setError('')
     try {
-      const signedInUser = await login(email, password)
+      const signedInUser = await login(email, password, rememberMe)
       const requestedPath = location.state?.from?.pathname
       navigate(requestedPath || homeFor(signedInUser.role), { replace: true })
     } catch (requestError) {
@@ -85,7 +86,15 @@ export function LoginPage() {
             </button>
           </span>
         </label>
-        <div className="auth-inline-link">
+        <div className="login-options-row">
+          <label className="remember-me-control">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(event) => setRememberMe(event.target.checked)}
+            />
+            <span>Remember me</span>
+          </label>
           <Link to="/forgot-password">Forgot password?</Link>
         </div>
         {location.state?.notice && (

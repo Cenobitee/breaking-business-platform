@@ -1,7 +1,9 @@
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080/api'
 
 export async function apiRequest(path, options = {}) {
-  const token = sessionStorage.getItem('financial-platform-token')
+  const token =
+    sessionStorage.getItem('financial-platform-token') ||
+    localStorage.getItem('financial-platform-token')
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
@@ -12,8 +14,11 @@ export async function apiRequest(path, options = {}) {
   })
 
   if (response.status === 401 && path !== '/auth/login') {
-    sessionStorage.removeItem('financial-platform-token')
-    sessionStorage.removeItem('financial-platform-user')
+    ;[sessionStorage, localStorage].forEach((storage) => {
+      storage.removeItem('financial-platform-token')
+      storage.removeItem('financial-platform-user')
+      storage.removeItem('financial-platform-token-expires-at')
+    })
     window.dispatchEvent(new Event('financial-platform-auth-expired'))
   }
 
