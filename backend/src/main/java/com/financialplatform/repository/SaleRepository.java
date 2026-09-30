@@ -64,9 +64,49 @@ public interface SaleRepository extends JpaRepository<Sale, Long> {
 
   @Query(
       """
+      select coalesce(sum(s.quantity * s.unitCostSnapshot), 0) from Sale s
+      where s.createdBy.business = :business
+      and s.createdAt >= :start and s.createdAt < :end
+      and not exists (select c.id from SaleCancellation c where c.sale = s)
+      """)
+  BigDecimal sumDirectCostBetween(
+      @Param("business") Business business,
+      @Param("start") Instant start,
+      @Param("end") Instant end);
+
+  @Query(
+      """
       select coalesce(sum(s.total), 0) from Sale s
       where s.createdBy.business = :business
       and not exists (select c.id from SaleCancellation c where c.sale = s)
       """)
   BigDecimal sumAllRevenue(@Param("business") Business business);
+
+  @Query(
+      """
+      select coalesce(sum(s.total), 0) from Sale s
+      where s.createdBy.business = :business
+      and s.product.id in :productIds
+      and s.createdAt >= :start and s.createdAt < :end
+      and not exists (select c.id from SaleCancellation c where c.sale = s)
+      """)
+  BigDecimal sumTotalBetweenForProducts(
+      @Param("business") Business business,
+      @Param("productIds") List<Long> productIds,
+      @Param("start") Instant start,
+      @Param("end") Instant end);
+
+  @Query(
+      """
+      select coalesce(sum(s.quantity * s.unitCostSnapshot), 0) from Sale s
+      where s.createdBy.business = :business
+      and s.product.id in :productIds
+      and s.createdAt >= :start and s.createdAt < :end
+      and not exists (select c.id from SaleCancellation c where c.sale = s)
+      """)
+  BigDecimal sumDirectCostBetweenForProducts(
+      @Param("business") Business business,
+      @Param("productIds") List<Long> productIds,
+      @Param("start") Instant start,
+      @Param("end") Instant end);
 }

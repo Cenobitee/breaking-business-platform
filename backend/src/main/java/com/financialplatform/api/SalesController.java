@@ -1,11 +1,14 @@
 package com.financialplatform.api;
 
 import com.financialplatform.api.dto.BulkDeleteSalesResponse;
+import com.financialplatform.api.dto.BulkDeleteSalesRequest;
 import com.financialplatform.api.dto.CreateSaleRequest;
 import com.financialplatform.api.dto.SaleResponse;
 import com.financialplatform.service.SalesService;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.time.LocalDate;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -41,5 +44,20 @@ public class SalesController {
   @DeleteMapping("/today")
   public BulkDeleteSalesResponse cancelToday(Authentication authentication) {
     return new BulkDeleteSalesResponse(salesService.cancelToday(authentication.getName()));
+  }
+
+  @DeleteMapping("/date/{date}")
+  public BulkDeleteSalesResponse cancelByDate(
+      @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+      Authentication authentication) {
+    return new BulkDeleteSalesResponse(
+        salesService.cancelByDate(date, authentication.getName()));
+  }
+
+  @PostMapping("/bulk-delete")
+  public BulkDeleteSalesResponse cancelSelected(
+      @Valid @RequestBody BulkDeleteSalesRequest request, Authentication authentication) {
+    return new BulkDeleteSalesResponse(
+        salesService.cancelSelected(request.saleIds(), authentication.getName()));
   }
 }

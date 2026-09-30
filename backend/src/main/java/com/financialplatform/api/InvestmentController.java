@@ -22,7 +22,9 @@ public class InvestmentController {
   public ResponseEntity<InvestmentRequestResponse> requestInvestment(
       @Valid @RequestBody CreateInvestmentRequest request, Authentication authentication) {
     return ResponseEntity.status(HttpStatus.CREATED)
-        .body(investmentService.requestInvestment(request.amount(), authentication.getName()));
+        .body(
+            investmentService.requestInvestment(
+                request.packageId(), request.quantity(), authentication.getName()));
   }
 
   @GetMapping("/me")
@@ -40,7 +42,22 @@ public class InvestmentController {
       @PathVariable long packageId,
       @Valid @RequestBody UpdateInvestmentPackageRequest request,
       Authentication authentication) {
-    return investmentService.updatePackage(packageId, request.profitPercentage(), authentication.getName());
+    return investmentService.updatePackage(packageId, request, authentication.getName());
+  }
+
+  @PostMapping("/packages")
+  @ResponseStatus(HttpStatus.CREATED)
+  public InvestmentPackageResponse createPackage(
+      @Valid @RequestBody CreateInvestmentPackageRequest request,
+      Authentication authentication) {
+    return investmentService.createPackage(request, authentication.getName());
+  }
+
+  @DeleteMapping("/packages/{packageId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void deletePackage(
+      @PathVariable long packageId, Authentication authentication) {
+    investmentService.deletePackage(packageId, authentication.getName());
   }
 
   @GetMapping("/requests/pending")
@@ -64,6 +81,23 @@ public class InvestmentController {
   @GetMapping("/active")
   public List<OwnerInvestmentResponse> activeInvestments(Authentication authentication) {
     return investmentService.activeInvestments(authentication.getName());
+  }
+
+  @GetMapping("/cycles")
+  public List<InvestmentCycleResponse> cycles(Authentication authentication) {
+    return investmentService.businessCycles(authentication.getName());
+  }
+
+  @PostMapping("/cycles/{cycleId}/complete")
+  public InvestmentCycleResponse completeCycle(
+      @PathVariable long cycleId, Authentication authentication) {
+    return investmentService.completeCycle(cycleId, authentication.getName());
+  }
+
+  @PostMapping("/cycles/{cycleId}/withdraw")
+  public InvestmentCycleResponse withdrawMaturedInvestment(
+      @PathVariable long cycleId, Authentication authentication) {
+    return investmentService.withdrawMaturedInvestment(cycleId, authentication.getName());
   }
 
   @PostMapping("/{transactionId}/remove")

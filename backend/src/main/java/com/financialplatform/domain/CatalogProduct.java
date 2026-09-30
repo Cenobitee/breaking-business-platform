@@ -59,6 +59,10 @@ public class CatalogProduct {
     this.lowStockThreshold = lowStockThreshold;
   }
 
+  public void updateBaseCost(BigDecimal baseCost) {
+    this.unitCost = baseCost;
+  }
+
   public void sell(int quantity) {
     if (quantity > stockQuantity)
       throw new IllegalArgumentException(

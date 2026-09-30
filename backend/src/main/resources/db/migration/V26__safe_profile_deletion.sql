@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN profile_deleted BOOLEAN NOT NULL DEFAULT FALSE;

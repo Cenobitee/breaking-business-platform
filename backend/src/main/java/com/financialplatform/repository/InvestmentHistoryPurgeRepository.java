@@ -12,6 +12,20 @@ public class InvestmentHistoryPurgeRepository {
     entityManager
         .createNativeQuery("select set_config('app.allow_investment_purge', 'true', true)")
         .getSingleResult();
+    int cycles =
+        entityManager
+            .createNativeQuery(
+                """
+                delete from investment_cycles
+                where transaction_id in (
+                  select itx.id from investment_transactions itx
+                  where itx.investor_id in (
+                    select id from users where business_id = :businessId
+                  )
+                )
+                """)
+            .setParameter("businessId", businessId)
+            .executeUpdate();
     int removals =
         entityManager
             .createNativeQuery(
@@ -39,7 +53,12 @@ public class InvestmentHistoryPurgeRepository {
                 """)
             .setParameter("businessId", businessId)
             .executeUpdate();
+    entityManager
+        .createNativeQuery(
+            "update investment_packages set committed_units = 0 where business_id = :businessId")
+        .setParameter("businessId", businessId)
+        .executeUpdate();
     entityManager.clear();
-    return removals + transactions + requests;
+    return cycles + removals + transactions + requests;
   }
 }

@@ -12,6 +12,7 @@ public record UserProfileResponse(
     String address,
     String profileImageDataUrl,
     Role role,
+    boolean active,
     boolean ownerEditingAllowed) {
   public static UserProfileResponse from(AppUser user, boolean ownerEditingAllowed) {
     return new UserProfileResponse(
@@ -23,6 +24,7 @@ public record UserProfileResponse(
         user.getAddress(),
         user.getProfileImageDataUrl(),
         user.getRole(),
+        user.isActive(),
         ownerEditingAllowed);
   }
 }

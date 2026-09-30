@@ -9,4 +9,6 @@ public record OperationsAnalyticsResponse(
     long orderCount,
     BigDecimal averageOrderValue,
     BigDecimal expenses,
-    BigDecimal netOperatingAmount) {}
+    BigDecimal netOperatingAmount,
+    BigDecimal productCost,
+    BigDecimal actualProfit) {}

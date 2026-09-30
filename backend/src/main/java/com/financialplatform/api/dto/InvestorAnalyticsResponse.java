@@ -16,10 +16,4 @@ public record InvestorAnalyticsResponse(
     BigDecimal completedMonthRevenue,
     BigDecimal completedMonthExpenses,
     BigDecimal completedMonthNetProfit,
-    BigDecimal investorCombinedProfitPercentage,
-    BigDecimal investorTodayProfit,
-    BigDecimal investorCompletedMonthProfit,
-    BigDecimal investorLifetimeRevenueShare,
-    BigDecimal investorLifetimeExpenseShare,
-    BigDecimal investorLifetimeNetProfit,
     LocalDate nextDisbursementDate) {}

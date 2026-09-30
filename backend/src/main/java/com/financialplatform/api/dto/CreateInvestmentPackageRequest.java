@@ -1,15 +1,10 @@
 package com.financialplatform.api.dto;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.util.List;
-import jakarta.validation.constraints.NotBlank;
 
-public record UpdateInvestmentPackageRequest(
+public record CreateInvestmentPackageRequest(
     @NotNull @DecimalMin("1.00") BigDecimal amount,
     @NotNull @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal earningMinPercentage,
     @NotNull @DecimalMin("0.00") @DecimalMax("100.00") BigDecimal earningMaxPercentage,

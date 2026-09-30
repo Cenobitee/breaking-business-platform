@@ -23,6 +23,9 @@ public class Sale {
   @Column(nullable = false, updatable = false, precision = 14, scale = 2)
   private BigDecimal total;
 
+  @Column(name = "unit_cost_snapshot", nullable = false, updatable = false, precision = 12, scale = 2)
+  private BigDecimal unitCostSnapshot = BigDecimal.ZERO;
+
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt = Instant.now();
 
@@ -54,6 +57,7 @@ public class Sale {
     this.total = total;
     this.createdBy = createdBy;
     this.product = product;
+    this.unitCostSnapshot = product == null ? BigDecimal.ZERO : product.getUnitCost();
   }
 
   public Long getId() {
@@ -74,6 +78,10 @@ public class Sale {
 
   public BigDecimal getTotal() {
     return total;
+  }
+
+  public BigDecimal getUnitCostSnapshot() {
+    return unitCostSnapshot;
   }
 
   public Instant getCreatedAt() {

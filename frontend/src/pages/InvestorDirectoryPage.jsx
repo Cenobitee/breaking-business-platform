@@ -5,6 +5,7 @@ import { apiRequest } from '../api/client'
 const money = (value) =>
   `৳${Number(value || 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 const dateTime = (value) => (value ? new Date(value).toLocaleString('en-BD') : '—')
+const percent = (value) => `${Number(value || 0).toFixed(2)}%`
 const initials = (name) =>
   name
     .split(/\s+/)
@@ -23,17 +24,20 @@ export function InvestorDirectoryPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [approvingId, setApprovingId] = useState(null)
+  const [analytics, setAnalytics] = useState(null)
 
   const load = useCallback(async () => {
     try {
-      const [userData, requestData, investmentData] = await Promise.all([
+      const [userData, requestData, investmentData, analyticsData] = await Promise.all([
         apiRequest('/users'),
         apiRequest('/investments/requests/pending'),
         apiRequest('/investments/active'),
+        apiRequest('/analytics/investor'),
       ])
       setUsers(userData.filter((member) => member.role === 'INVESTOR'))
       setPendingRequests(requestData)
       setActiveInvestments(investmentData)
+      setAnalytics(analyticsData)
       setError('')
     } catch (requestError) {
       setError(requestError.message)
@@ -70,6 +74,10 @@ export function InvestorDirectoryPage() {
   const selected = investors.find((investor) => investor.id === selectedId)
   const totalActiveCapital = investors.reduce((sum, investor) => sum + investor.activeAmount, 0)
   const totalPendingCapital = investors.reduce((sum, investor) => sum + investor.pendingAmount, 0)
+  const netProfit = Number(analytics?.netProfit || 0)
+  const latestInvestment = [...activeInvestments].sort(
+    (first, second) => new Date(second.investedAt) - new Date(first.investedAt),
+  )[0]
 
   async function approve(request) {
     if (
@@ -109,6 +117,51 @@ export function InvestorDirectoryPage() {
 
   return (
     <div className="page-stack investor-directory-page">
+      <section className="investor-directory-overview">
+        <div className="investor-heading">
+          <div>
+            <p className="eyebrow">Investor management</p>
+            <h1>Investor overview</h1>
+            <p>Review the financial information and experience provided to your investors.</p>
+          </div>
+          <span className="investor-access-badge"><i /> Verified access</span>
+        </div>
+
+        {analytics && (
+          <>
+            <section className="investor-portfolio-hero" aria-label="Investor financial summary">
+              <div className="investor-portfolio-main">
+                <span>Approved investor capital</span>
+                <strong>{money(analytics.initialCapital)}</strong>
+                <p>Capital currently approved for the business</p>
+              </div>
+              <div className="investor-portfolio-stat">
+                <span>Business net profit</span>
+                <strong className={netProfit < 0 ? 'negative' : ''}>{money(netProfit)}</strong>
+                <small>Revenue minus operational expenses</small>
+              </div>
+              <div className="investor-portfolio-stat">
+                <span>Profit margin</span>
+                <strong>{percent(analytics.profitMarginPercentage)}</strong>
+                <small>Profit earned from every ৳100 of sales</small>
+              </div>
+              <div className="investor-portfolio-stat">
+                <span>Capital health</span>
+                <strong>{percent(analytics.capitalHealthPercentage)}</strong>
+                <div className="investor-health-track"><i style={{ width: `${Math.min(Math.max(Number(analytics.capitalHealthPercentage), 0), 100)}%` }} /></div>
+              </div>
+            </section>
+
+            <section className="investor-business-grid" aria-label="Investor transparency summary">
+              <article><span>↗</span><div><small>Total business revenue</small><strong>{money(analytics.totalRevenue)}</strong><p>Income generated from recorded sales.</p></div></article>
+              <article><span>↘</span><div><small>Operating expenses</small><strong>{money(analytics.totalExpenses)}</strong><p>Recorded costs required to run the business.</p></div></article>
+              <article><span>◎</span><div><small>Approved capital</small><strong>{money(analytics.initialCapital)}</strong><p>Visible to investors for transparency.</p></div></article>
+              <article><span>✓</span><div><small>Latest portfolio activity</small><strong>{latestInvestment ? dateTime(latestInvestment.investedAt).split(',')[0] : 'No activity yet'}</strong><p>{latestInvestment ? `${money(latestInvestment.amount)} approved investment` : 'Approved investments will appear here.'}</p></div></article>
+            </section>
+          </>
+        )}
+      </section>
+
       <header className="investor-directory-heading">
         <div>
           <p className="eyebrow">Owner workspace</p>

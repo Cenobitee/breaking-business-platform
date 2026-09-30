@@ -68,6 +68,21 @@ public class UserProfileService {
     return UserProfileResponse.from(member, true);
   }
 
+  @Transactional
+  public UserProfileResponse updateMemberAccess(long id, boolean active, String ownerEmail) {
+    AppUser owner = owner(ownerEmail);
+    AppUser member = manageableMember(id, owner);
+    member.updateAccess(active);
+    return UserProfileResponse.from(member, true);
+  }
+
+  @Transactional
+  public void deleteMember(long id, String ownerEmail) {
+    AppUser owner = owner(ownerEmail);
+    AppUser member = manageableMember(id, owner);
+    member.deleteProfile();
+  }
+
   private AppUser user(String email) {
     return users.findByEmailIgnoreCase(email).orElseThrow();
   }
@@ -84,6 +99,14 @@ public class UserProfileService {
         users.findById(id).orElseThrow(() -> new IllegalArgumentException("Profile not found"));
     if (!member.getBusiness().getId().equals(owner.getBusiness().getId()))
       throw new IllegalArgumentException("Profile not found");
+    if (member.isProfileDeleted()) throw new IllegalArgumentException("Profile not found");
+    return member;
+  }
+
+  private AppUser manageableMember(long id, AppUser owner) {
+    AppUser member = member(id, owner);
+    if (member.getRole() == Role.OWNER)
+      throw new IllegalArgumentException("The Owner profile cannot be disabled or deleted");
     return member;
   }
 }

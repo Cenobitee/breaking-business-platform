@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { apiRequest } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 
@@ -16,21 +16,29 @@ export function InvestorDashboard({ view = 'overview' }) {
   const [analytics, setAnalytics] = useState(null)
   const [investments, setInvestments] = useState(null)
   const [packages, setPackages] = useState([])
+  const [products, setProducts] = useState([])
   const [amount, setAmount] = useState('')
+  const [quantity, setQuantity] = useState(1)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [changingVisibilityId, setChangingVisibilityId] = useState(null)
+  const [editingPackage, setEditingPackage] = useState(null)
+  const [deletingPackageId, setDeletingPackageId] = useState(null)
 
   const load = useCallback(async () => {
     try {
-      const [analyticsData, investmentData, packageData] = await Promise.all([
+      const [analyticsData, investmentData, packageData, productData] = await Promise.all([
         apiRequest('/analytics/investor'),
         isInvestor ? apiRequest('/investments/me') : Promise.resolve(null),
         apiRequest('/investments/packages'),
+        isInvestor ? Promise.resolve([]) : apiRequest('/products'),
       ])
       setAnalytics(analyticsData)
       setInvestments(investmentData)
       setPackages(packageData)
+      setProducts(productData)
       setError('')
     } catch (requestError) {
       setError(requestError.message)
@@ -44,6 +52,13 @@ export function InvestorDashboard({ view = 'overview' }) {
   }, [load])
 
   useEffect(() => {
+    if (amount && !packages.some((item) => Number(item.id) === Number(amount))) {
+      setAmount('')
+      setQuantity(1)
+    }
+  }, [amount, packages])
+
+  useEffect(() => {
     if (location.state?.paymentNotice) {
       setNotice(location.state.paymentNotice)
       navigate(location.pathname, { replace: true, state: null })
@@ -55,24 +70,121 @@ export function InvestorDashboard({ view = 'overview' }) {
     setError('')
     setNotice('')
     const selectedPackage = packages.find(
-      (investmentPackage) => Number(investmentPackage.amount) === Number(amount),
+      (investmentPackage) => Number(investmentPackage.id) === Number(amount),
     )
     if (!selectedPackage) return
-    navigate('/investor/payment', { state: { investmentPackage: selectedPackage } })
+    navigate('/investor/payment', {
+      state: { investmentPackage: selectedPackage, quantity },
+    })
   }
 
-  async function updatePackage(investmentPackage, percentage) {
+  async function updatePackage(investmentPackage, form) {
     setError('')
     setNotice('')
     try {
       await apiRequest(`/investments/packages/${investmentPackage.id}`, {
         method: 'PUT',
-        body: JSON.stringify({ profitPercentage: Number(percentage) }),
+        body: JSON.stringify({
+          amount: Number(form.amount.value),
+          earningMinPercentage: Number(form.minimum.value),
+          earningMaxPercentage: Number(form.maximum.value),
+          durationMonths: Number(form.duration.value),
+          totalUnits: Number(form.units.value),
+          projectName: form.projectName.value,
+          purpose: form.purpose.value,
+          fundingTarget: Number(form.fundingTarget.value),
+          productIds: Array.from(form.querySelectorAll('input[name="productIds"]:checked')).map(
+            (input) => Number(input.value),
+          ),
+          active: investmentPackage.active,
+        }),
       })
-      setNotice(`${money(investmentPackage.amount)} package updated to ${percentage}%.`)
+      setNotice(`${money(investmentPackage.amount)} unit offer updated.`)
+      await load()
+      setEditingPackage(null)
+    } catch (requestError) {
+      setError(requestError.message)
+    }
+  }
+
+  async function publishPackage(event) {
+    event.preventDefault()
+    const form = event.currentTarget
+    setPublishing(true)
+    setError('')
+    setNotice('')
+    try {
+      await apiRequest('/investments/packages', {
+        method: 'POST',
+        body: JSON.stringify({
+          amount: Number(form.amount.value),
+          earningMinPercentage: Number(form.minimum.value),
+          earningMaxPercentage: Number(form.maximum.value),
+          durationMonths: Number(form.duration.value),
+          totalUnits: Number(form.units.value),
+          projectName: form.projectName.value,
+          purpose: form.purpose.value,
+          fundingTarget: Number(form.fundingTarget.value),
+          productIds: Array.from(form.querySelectorAll('input[name="productIds"]:checked')).map(
+            (input) => Number(input.value),
+          ),
+          active: form.active.checked,
+        }),
+      })
+      form.reset()
+      setNotice('Investment opportunity posted successfully.')
       await load()
     } catch (requestError) {
       setError(requestError.message)
+    } finally {
+      setPublishing(false)
+    }
+  }
+
+  async function changePackageVisibility(investmentPackage) {
+    setChangingVisibilityId(investmentPackage.id)
+    setError('')
+    setNotice('')
+    try {
+      await apiRequest(`/investments/packages/${investmentPackage.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          amount: investmentPackage.amount,
+          earningMinPercentage: investmentPackage.earningMinPercentage,
+          earningMaxPercentage: investmentPackage.earningMaxPercentage,
+          durationMonths: investmentPackage.durationMonths,
+          totalUnits: investmentPackage.totalUnits,
+          projectName: investmentPackage.projectName,
+          purpose: investmentPackage.purpose,
+          fundingTarget: investmentPackage.fundingTarget,
+          productIds: investmentPackage.productIds || [],
+          active: !investmentPackage.active,
+        }),
+      })
+      setNotice(
+        `${investmentPackage.projectName} is now ${investmentPackage.active ? 'inactive and hidden from investors' : 'active and visible to investors'}.`,
+      )
+      await load()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setChangingVisibilityId(null)
+    }
+  }
+
+  async function deletePackage(investmentPackage) {
+    if (!window.confirm(`Delete “${investmentPackage.projectName}”? This cannot be undone.`)) return
+    setDeletingPackageId(investmentPackage.id)
+    setError('')
+    setNotice('')
+    try {
+      await apiRequest(`/investments/packages/${investmentPackage.id}`, { method: 'DELETE' })
+      setNotice(`${investmentPackage.projectName} was deleted.`)
+      await load()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setDeletingPackageId(null)
     }
   }
 
@@ -83,13 +195,9 @@ export function InvestorDashboard({ view = 'overview' }) {
   const pendingRequests = (investments?.requests || []).filter(
     (request) => request.status === 'PENDING',
   )
+  const latestRequest = (investments?.requests || [])[0]
   const latestActivity = (investments?.history || [])[0]
-  const investorProfitRate = Number(analytics?.investorCombinedProfitPercentage || 0)
-  const investorRevenueShare = Number(analytics?.investorLifetimeRevenueShare || 0)
-  const investorExpenseShare = Number(analytics?.investorLifetimeExpenseShare || 0)
-  const investorNetGain = Number(analytics?.investorLifetimeNetProfit || 0)
-  const dailyProfit = Number(analytics?.investorTodayProfit || 0)
-  const monthlyProfit = Number(analytics?.investorCompletedMonthProfit || 0)
+  const investmentCycles = investments?.cycles || []
   const pageContent =
     view === 'investments'
       ? {
@@ -107,10 +215,10 @@ export function InvestorDashboard({ view = 'overview' }) {
             eyebrow: 'Investor portal',
             title: isInvestor
               ? `Welcome, ${user.fullName?.split(' ')[0] || 'Investor'}`
-              : 'Investor overview',
+              : 'Investment packages',
             description: isInvestor
               ? 'Track your capital and the financial progress of the business in one secure place.'
-              : 'Review the financial information and experience provided to your investors.',
+              : 'Create, publish, edit, and manage opportunities shown to investors.',
           }
 
   return (
@@ -121,9 +229,24 @@ export function InvestorDashboard({ view = 'overview' }) {
           <h1>{pageContent.title}</h1>
           <p>{pageContent.description}</p>
         </div>
-        <span className="investor-access-badge">
-          <i /> Verified access
-        </span>
+        <div className="investor-header-actions">
+          {isInvestor && (
+            <div className="compact-approval-tracker">
+              <small>Approval tracker</small>
+              <strong>
+                {pendingRequests.length
+                  ? `${pendingRequests.length} pending`
+                  : latestRequest
+                    ? latestRequest.status
+                    : 'No requests'}
+              </strong>
+              {latestRequest && <span>{money(latestRequest.amount)}</span>}
+            </div>
+          )}
+          <span className="investor-access-badge">
+            <i /> Verified access
+          </span>
+        </div>
       </div>
       {error && (
         <p className="error-message" role="alert">
@@ -138,7 +261,7 @@ export function InvestorDashboard({ view = 'overview' }) {
       {!analytics && !error && <p>Loading investor analytics…</p>}
       {analytics && (
         <>
-          {view === 'overview' && (
+          {isInvestor && view === 'overview' && (
             <section className="investor-portfolio-hero" aria-label="Investment portfolio summary">
               <div className="investor-portfolio-main">
                 <span>{isInvestor ? 'Your active investment' : 'Approved investor capital'}</span>
@@ -174,74 +297,68 @@ export function InvestorDashboard({ view = 'overview' }) {
           )}
 
           {isInvestor && view === 'overview' && (
-            <section className="investor-profit-periods" aria-label="Daily and monthly profit">
-              <article className="investor-daily-profit">
+            <section className="panel investment-cycle-panel">
+              <div className="panel-title-row">
                 <div>
-                  <p className="eyebrow">Today’s activity</p>
-                  <h2>Daily profit</h2>
-                  <p>Calculated from today’s product sales after today’s expenses.</p>
+                  <p className="eyebrow">Fixed investment periods</p>
+                  <h2>Your investment cycles</h2>
                 </div>
-                <strong className={dailyProfit < 0 ? 'negative' : ''}>{money(dailyProfit)}</strong>
-                <small>Pending until the day closes</small>
-              </article>
-              <article className="investor-monthly-profit">
-                <div>
-                  <p className="eyebrow">Completed days this month</p>
-                  <h2>Monthly profit balance</h2>
-                  <p>Each daily profit is added automatically after that day ends.</p>
-                </div>
-                <strong className={monthlyProfit < 0 ? 'negative' : ''}>
-                  {money(monthlyProfit)}
-                </strong>
-                <span>
-                  Available for disbursement on{' '}
-                  {new Date(`${analytics.nextDisbursementDate}T00:00:00`).toLocaleDateString(
-                    'en-BD',
-                    { day: 'numeric', month: 'long', year: 'numeric' },
-                  )}
+                <span className="investor-return-rate">
+                  {investmentCycles.length} {investmentCycles.length === 1 ? 'cycle' : 'cycles'}
                 </span>
-              </article>
+              </div>
+              <p>Quick view of your approved investments.</p>
+              <div className="investment-cycle-grid">
+                {investmentCycles.map((cycle) => {
+                  const duration = new Date(cycle.endsAt) - new Date(cycle.startsAt)
+                  const elapsed = Date.now() - new Date(cycle.startsAt).getTime()
+                  const progress =
+                    cycle.status === 'COMPLETED'
+                      ? 100
+                      : Math.min(100, Math.max(0, (elapsed / duration) * 100))
+                  return (
+                    <article key={cycle.id} className="investment-cycle-card">
+                      <div className="investment-cycle-card-heading">
+                        <div>
+                          <small>
+                            {cycle.status === 'WITHDRAWN'
+                              ? 'Return withdrawn'
+                              : cycle.status === 'COMPLETED'
+                                ? 'Ready to withdraw'
+                                : 'Live product-sales estimate'}
+                          </small>
+                          <strong>{cycle.projectName}</strong>
+                          <span>{money(cycle.principal)} invested</span>
+                        </div>
+                        <span className={`role-label status-${cycle.status.toLowerCase()}`}>
+                          {cycle.status}
+                        </span>
+                      </div>
+                      <div
+                        className="cycle-progress"
+                        aria-label={`${progress.toFixed(0)} percent complete`}
+                      >
+                        <i style={{ width: `${progress}%` }} />
+                      </div>
+                      <div className="cycle-compact-date">
+                        <span>Matures</span><strong>{dateTime(cycle.endsAt).split(',')[0]}</strong>
+                      </div>
+                      <dl className="cycle-compact-metrics">
+                        <div><dt>Live profit</dt><dd>{money(cycle.investorProfit)}</dd></div>
+                        <div><dt>Current return</dt><dd>{money(cycle.settlementTotal)}</dd></div>
+                      </dl>
+                      <Link className="cycle-view-details" to={`/investor/investments/${cycle.id}`}>
+                        View investment details →
+                      </Link>
+                    </article>
+                  )
+                })}
+                {investmentCycles.length === 0 && <p>No approved investment cycle yet.</p>}
+              </div>
             </section>
           )}
 
           {isInvestor && view === 'overview' && (
-            <section className="panel investor-profit-breakdown">
-              <div className="panel-title-row">
-                <div>
-                  <p className="eyebrow">Your calculated return</p>
-                  <h2>Profit after business expenses</h2>
-                </div>
-                <span className="investor-return-rate">
-                  {percent(investorProfitRate)} combined rate
-                </span>
-              </div>
-              <p className="investor-profit-explanation">
-                Only sales and expenses recorded after the Owner approved your investment are
-                included. Earlier business activity never changes your return.
-              </p>
-              <div className="investor-profit-equation">
-                <article>
-                  <small>Your share of sales revenue</small>
-                  <strong>{money(investorRevenueShare)}</strong>
-                </article>
-                <span>−</span>
-                <article>
-                  <small>Your share of expenses</small>
-                  <strong>{money(investorExpenseShare)}</strong>
-                </article>
-                <span>=</span>
-                <article className={investorNetGain < 0 ? 'negative' : 'positive'}>
-                  <small>Your estimated net gain</small>
-                  <strong>{money(investorNetGain)}</strong>
-                </article>
-              </div>
-              <small className="investor-profit-note">
-                Calculation: (total sales − total expenses) × your combined package rate.
-              </small>
-            </section>
-          )}
-
-          {view === 'overview' && (
             <section className="investor-business-grid" aria-label="Business performance">
               <article>
                 <span>↗</span>
@@ -301,76 +418,121 @@ export function InvestorDashboard({ view = 'overview' }) {
                   <div>
                     <p className="eyebrow">New investment</p>
                     <h2>Request to invest</h2>
-                    <p>Select a package set by the Owner. It is counted only after approval.</p>
+                    <p>
+                      {amount
+                        ? `${money(packages.find((item) => Number(item.id) === Number(amount))?.amount)} selected per unit`
+                        : 'Choose an opportunity from the list below.'}
+                    </p>
                   </div>
-                  <form className="investment-request-form" onSubmit={requestInvestment}>
-                    <div
-                      className="investment-package-options"
-                      role="radiogroup"
-                      aria-label="Investment package"
-                    >
-                      {packages.map((investmentPackage) => (
-                        <button
-                          type="button"
-                          key={investmentPackage.id}
-                          className={
-                            Number(amount) === Number(investmentPackage.amount) ? 'selected' : ''
+                  {amount && (
+                    <form className="investment-request-form" onSubmit={requestInvestment}>
+                      <label>
+                        Quantity
+                        <input
+                          type="number"
+                          min="1"
+                          max={
+                            packages.find((item) => Number(item.id) === Number(amount))
+                              ?.remainingUnits || 1
                           }
-                          onClick={() => setAmount(String(investmentPackage.amount))}
-                        >
-                          <strong>{money(investmentPackage.amount)}</strong>
-                          <span>{percent(investmentPackage.profitPercentage)} profit share</span>
-                        </button>
-                      ))}
-                    </div>
-                    <button type="submit" disabled={submitting || !amount}>
-                      {submitting ? 'Opening payment…' : 'Continue to payment'}
-                    </button>
-                  </form>
+                          value={quantity}
+                          onChange={(event) => setQuantity(Number(event.target.value))}
+                          required
+                        />
+                      </label>
+                      <button type="submit" disabled={submitting}>
+                        {submitting ? 'Opening payment…' : 'Continue to payment'}
+                      </button>
+                    </form>
+                  )}
                 </section>
               )}
 
               {view === 'investments' && (
-                <section className="panel investor-record-panel">
+                <section className="investment-opportunities-panel">
                   <div className="panel-title-row">
                     <div>
-                      <p className="eyebrow">Approval tracker</p>
-                      <h2>Investment requests</h2>
+                      <p className="eyebrow">Available opportunities</p>
+                      <h2>Choose an investment unit</h2>
                     </div>
-                    <span className="owner-muted-count">
-                      {(investments?.requests || []).length} records
-                    </span>
+                    <small>Scroll to view all ↓</small>
                   </div>
-                  <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Requested</th>
-                          <th>Amount</th>
-                          <th>Status</th>
-                          <th>Approved / invested</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(investments?.requests || []).map((request) => (
-                          <tr key={request.id}>
-                            <td>{dateTime(request.requestedAt)}</td>
-                            <td>{money(request.amount)}</td>
-                            <td>
-                              <span className={`role-label status-${request.status.toLowerCase()}`}>
-                                {request.status}
-                              </span>
-                            </td>
-                            <td>{dateTime(request.approvedAt)}</td>
-                          </tr>
-                        ))}
-                        {(investments?.requests || []).length === 0 && (
-                          <tr>
-                            <td colSpan="4">No investment requests yet.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+                  <div
+                    className="investment-package-options investment-project-feed"
+                    role="radiogroup"
+                    aria-label="Investment package"
+                  >
+                    {packages.map((investmentPackage) => {
+                      const minimumProfit =
+                        (Number(investmentPackage.amount) *
+                          Number(investmentPackage.earningMinPercentage)) /
+                        100
+                      const maximumProfit =
+                        (Number(investmentPackage.amount) *
+                          Number(investmentPackage.earningMaxPercentage)) /
+                        100
+                      const funded = Number(investmentPackage.fundedAmount || 0)
+                      const target = Number(investmentPackage.fundingTarget || 0)
+                      const progress = target ? Math.min(100, (funded / target) * 100) : 0
+                      return (
+                        <button
+                          type="button"
+                          key={investmentPackage.id}
+                          aria-pressed={Number(amount) === Number(investmentPackage.id)}
+                          title="Click to select. Double-click to clear selection."
+                          className={`investment-project-card${Number(amount) === Number(investmentPackage.id) ? ' selected' : ''}`}
+                          onClick={() => {
+                            setAmount(String(investmentPackage.id))
+                            setQuantity(1)
+                          }}
+                          onDoubleClick={() => {
+                            setAmount('')
+                            setQuantity(1)
+                          }}
+                        >
+                          <div className="investment-project-card-top">
+                            <div>
+                              <span className="investment-project-type">Live opportunity</span>
+                              <h3>{investmentPackage.projectName}</h3>
+                            </div>
+                            <span
+                              className={`project-selection-indicator${Number(amount) === Number(investmentPackage.id) ? ' checked' : ''}`}
+                              aria-hidden="true"
+                            >
+                              {Number(amount) === Number(investmentPackage.id) ? '✓' : ''}
+                            </span>
+                          </div>
+                          <div className="investment-project-description">
+                            <small>About this project</small>
+                            <p>{investmentPackage.purpose}</p>
+                          </div>
+                          <div className="investment-project-products">
+                            <small>Profit-linked products</small>
+                            <strong>{investmentPackage.productNames?.join(', ') || 'Business products specified by owner'}</strong>
+                          </div>
+                          <div className="investment-project-funding">
+                            <div><span>Funded {money(funded)}</span><span>Target {money(target)}</span></div>
+                            <i><b style={{ width: `${progress}%` }} /></i>
+                          </div>
+                          <dl>
+                            <div><dt>Per unit</dt><dd>{money(investmentPackage.amount)}</dd></div>
+                            <div><dt>Estimated profit</dt><dd>{money(minimumProfit)}–{money(maximumProfit)}</dd><small>{percent(investmentPackage.earningMinPercentage)}–{percent(investmentPackage.earningMaxPercentage)}</small></div>
+                            <div><dt>Total at maturity</dt><dd>{money(Number(investmentPackage.amount) + minimumProfit)}–{money(Number(investmentPackage.amount) + maximumProfit)}</dd></div>
+                            <div><dt>Project duration</dt><dd>{investmentPackage.durationMonths} months</dd></div>
+                            <div><dt>Units remaining</dt><dd>{investmentPackage.remainingUnits} of {investmentPackage.totalUnits}</dd></div>
+                          </dl>
+                          <div className="investment-project-card-footer">
+                            <span>Profit tracking starts after owner approval</span>
+                            <strong>{Number(amount) === Number(investmentPackage.id) ? 'Selected ✓' : 'Select investment'}</strong>
+                          </div>
+                        </button>
+                      )
+                    })}
+                    {!packages.length && (
+                      <p className="investment-empty-list">
+                        No active investment opportunities are available right now.
+                      </p>
+                    )}
                   </div>
                 </section>
               )}
@@ -433,39 +595,149 @@ export function InvestorDashboard({ view = 'overview' }) {
               <div className="panel-title-row">
                 <div>
                   <p className="eyebrow">Owner controls</p>
-                  <h2>Investment packages</h2>
-                  <p>Set the profit percentage offered for each fixed investment amount.</p>
+                  <h2>Post an investment opportunity</h2>
+                  <p>Create one clear post. Active posts become visible in the investor feed.</p>
                 </div>
               </div>
-              <div className="owner-package-grid">
+              <form className="investment-post-composer" onSubmit={publishPackage}>
+                <label className="investment-post-wide">
+                  Project name
+                  <input name="projectName" maxLength="140" placeholder="Example: New pizza oven" required />
+                </label>
+                <label className="investment-post-wide">
+                  What will this investment fund?
+                  <textarea name="purpose" maxLength="500" rows="3" placeholder="Explain how the money will be used." required />
+                </label>
+                <label>Investment per unit (৳)<input name="amount" type="number" inputMode="decimal" step="any" placeholder="Enter any amount" required /></label>
+                <label>Funding target (৳)<input name="fundingTarget" type="number" inputMode="decimal" step="any" placeholder="Enter any amount" required /></label>
+                <label>Minimum earnings (%)<input name="minimum" type="number" min="0" max="100" step="0.01" required /></label>
+                <label>Maximum earnings (%)<input name="maximum" type="number" min="0" max="100" step="0.01" required /></label>
+                <label>Duration (months)<input name="duration" type="number" min="1" max="60" required /></label>
+                <label>Total investment units<input name="units" type="number" min="1" required /></label>
+                <details className="product-multiselect investment-post-wide">
+                  <summary>Products connected to this project <span>Select products</span></summary>
+                  <div>
+                    {products.map((product) => (
+                      <label key={product.id}><input name="productIds" type="checkbox" value={product.id} />{product.name}</label>
+                    ))}
+                    {!products.length && <small>Add products in Point of sale first.</small>}
+                  </div>
+                </details>
+                <label className="investment-post-visibility investment-post-wide">
+                  <input name="active" type="checkbox" defaultChecked />
+                  <span><strong>Publish as active</strong><small>Investors can see and select this opportunity immediately.</small></span>
+                </label>
+                <button className="investment-post-wide" type="submit" disabled={publishing}>
+                  {publishing ? 'Publishing…' : 'Post investment opportunity'}
+                </button>
+              </form>
+
+              <div className="owner-investment-posts">
+                <div className="owner-section-heading">
+                  <div><p className="eyebrow">Published posts</p><h3>Your investment opportunities</h3></div>
+                  <span>{packages.length} posts</span>
+                </div>
                 {packages.map((investmentPackage) => (
-                  <form
+                  <article
                     key={investmentPackage.id}
-                    onSubmit={(event) => {
-                      event.preventDefault()
-                      updatePackage(investmentPackage, event.currentTarget.percentage.value)
+                    className="owner-investment-post"
+                    role="button"
+                    tabIndex="0"
+                    aria-label={`Edit ${investmentPackage.projectName}`}
+                    onClick={() => setEditingPackage(investmentPackage)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setEditingPackage(investmentPackage)
+                      }
                     }}
                   >
-                    <strong>{money(investmentPackage.amount)}</strong>
-                    <label>
-                      Profit percentage
-                      <div>
+                    <div>
+                      <span className={`investment-visibility-badge ${investmentPackage.active ? 'active' : 'inactive'}`}>
+                        {investmentPackage.active ? 'Active' : 'Inactive'}
+                      </span>
+                      <h3>{investmentPackage.projectName}</h3>
+                      <p>{investmentPackage.purpose}</p>
+                    </div>
+                    <dl>
+                      <div><dt>Per unit</dt><dd>{money(investmentPackage.amount)}</dd></div>
+                      <div><dt>Expected earnings</dt><dd>{percent(investmentPackage.earningMinPercentage)}–{percent(investmentPackage.earningMaxPercentage)}</dd></div>
+                      <div><dt>Duration</dt><dd>{investmentPackage.durationMonths} months</dd></div>
+                      <div><dt>Available</dt><dd>{investmentPackage.remainingUnits} units</dd></div>
+                    </dl>
+                    <div className="owner-investment-post-actions" onClick={(event) => event.stopPropagation()}>
+                      <label className="investment-visibility-switch">
+                        <span>{changingVisibilityId === investmentPackage.id ? 'Updating…' : investmentPackage.active ? 'Active' : 'Inactive'}</span>
                         <input
-                          name="percentage"
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          defaultValue={Number(investmentPackage.profitPercentage)}
-                          required
+                          type="checkbox"
+                          checked={investmentPackage.active}
+                          disabled={changingVisibilityId === investmentPackage.id}
+                          onChange={() => changePackageVisibility(investmentPackage)}
+                          aria-label={`${investmentPackage.active ? 'Deactivate' : 'Activate'} ${investmentPackage.projectName}`}
                         />
-                        <span>%</span>
-                      </div>
-                    </label>
-                    <button type="submit">Save percentage</button>
-                  </form>
+                        <i aria-hidden="true" />
+                      </label>
+                      <button
+                        type="button"
+                        className="danger investment-post-delete"
+                        disabled={deletingPackageId === investmentPackage.id}
+                        onClick={() => deletePackage(investmentPackage)}
+                      >
+                        {deletingPackageId === investmentPackage.id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </div>
+                  </article>
                 ))}
+                {!packages.length && <p className="empty-state">Your published opportunities will appear here.</p>}
               </div>
+              {editingPackage && (
+                <div
+                  className="investment-edit-modal-backdrop"
+                  role="presentation"
+                  onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) setEditingPackage(null)
+                  }}
+                >
+                  <section className="investment-edit-modal" role="dialog" aria-modal="true" aria-labelledby="investment-edit-title">
+                    <div className="panel-title-row">
+                      <div>
+                        <p className="eyebrow">Edit investment post</p>
+                        <h2 id="investment-edit-title">Correct opportunity details</h2>
+                      </div>
+                      <button type="button" className="secondary" onClick={() => setEditingPackage(null)}>Close</button>
+                    </div>
+                    <form
+                      className="investment-post-composer"
+                      onSubmit={(event) => {
+                        event.preventDefault()
+                        updatePackage(editingPackage, event.currentTarget)
+                      }}
+                    >
+                      <label className="investment-post-wide">Project name<input name="projectName" maxLength="140" defaultValue={editingPackage.projectName} required /></label>
+                      <label className="investment-post-wide">Funding purpose<textarea name="purpose" maxLength="500" rows="3" defaultValue={editingPackage.purpose} required /></label>
+                      <label>Investment per unit (৳)<input name="amount" type="number" inputMode="decimal" step="any" defaultValue={Number(editingPackage.amount)} required /></label>
+                      <label>Funding target (৳)<input name="fundingTarget" type="number" inputMode="decimal" step="any" defaultValue={Number(editingPackage.fundingTarget)} required /></label>
+                      <label>Minimum earnings (%)<input name="minimum" type="number" min="0" max="100" step="0.01" defaultValue={Number(editingPackage.earningMinPercentage)} required /></label>
+                      <label>Maximum earnings (%)<input name="maximum" type="number" min="0" max="100" step="0.01" defaultValue={Number(editingPackage.earningMaxPercentage)} required /></label>
+                      <label>Duration (months)<input name="duration" type="number" min="1" max="60" defaultValue={editingPackage.durationMonths} required /></label>
+                      <label>Total units<input name="units" type="number" min={editingPackage.totalUnits - editingPackage.remainingUnits || 1} defaultValue={editingPackage.totalUnits} required /></label>
+                      <details className="product-multiselect investment-post-wide">
+                        <summary>Products connected to this project <span>Select products</span></summary>
+                        <div>
+                          {products.map((product) => (
+                            <label key={product.id}><input name="productIds" type="checkbox" value={product.id} defaultChecked={editingPackage.productIds?.includes(product.id)} />{product.name}</label>
+                          ))}
+                          {!products.length && <small>Add products in Point of sale first.</small>}
+                        </div>
+                      </details>
+                      <div className="investment-edit-actions investment-post-wide">
+                        <button type="button" className="secondary" onClick={() => setEditingPackage(null)}>Cancel</button>
+                        <button type="submit">Save changes</button>
+                      </div>
+                    </form>
+                  </section>
+                </div>
+              )}
             </section>
           )}
         </>

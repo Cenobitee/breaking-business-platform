@@ -9,6 +9,8 @@ export function InvestmentPaymentPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const investmentPackage = location.state?.investmentPackage
+  const quantity = Number(location.state?.quantity || 1)
+  const totalPayable = Number(investmentPackage?.amount || 0) * quantity
   const [method, setMethod] = useState('bkash')
   const [mobile, setMobile] = useState('')
   const [transactionId, setTransactionId] = useState('')
@@ -25,12 +27,12 @@ export function InvestmentPaymentPage() {
     try {
       await apiRequest('/investments/requests', {
         method: 'POST',
-        body: JSON.stringify({ amount: Number(investmentPackage.amount) }),
+        body: JSON.stringify({ packageId: investmentPackage.id, quantity }),
       })
       navigate('/investor/investments', {
         replace: true,
         state: {
-          paymentNotice: `${money(investmentPackage.amount)} payment submitted by ${method === 'card' ? 'card' : method}. The investment is pending Owner approval.`,
+          paymentNotice: `${money(totalPayable)} payment submitted by ${method === 'card' ? 'card' : method}. The investment is pending Owner approval.`,
         },
       })
     } catch (requestError) {
@@ -52,10 +54,23 @@ export function InvestmentPaymentPage() {
       <div className="investment-checkout-layout">
         <section className="panel investment-checkout-summary">
           <p className="eyebrow">Selected investment</p>
-          <h1>{money(investmentPackage.amount)}</h1>
+          <h1>{money(totalPayable)}</h1>
           <div>
-            <span>Profit share</span>
-            <strong>{Number(investmentPackage.profitPercentage).toFixed(2)}%</strong>
+            <span>Unit price × quantity</span>
+            <strong>
+              {money(investmentPackage.amount)} × {quantity}
+            </strong>
+          </div>
+          <div>
+            <span>Estimated earnings</span>
+            <strong>
+              {Number(investmentPackage.earningMinPercentage).toFixed(2)}%–
+              {Number(investmentPackage.earningMaxPercentage).toFixed(2)}%
+            </strong>
+          </div>
+          <div>
+            <span>Project duration</span>
+            <strong>{investmentPackage.durationMonths} months</strong>
           </div>
           <p>
             Payment submits an investment request. It will not become active and will not earn
@@ -173,9 +188,7 @@ export function InvestmentPaymentPage() {
             )}
             {error && <p className="error-message payment-form-message">{error}</p>}
             <button type="submit" className="investment-pay-button" disabled={submitting}>
-              {submitting
-                ? 'Processing…'
-                : `Pay ${money(investmentPackage.amount)} and request approval`}
+              {submitting ? 'Processing…' : `Pay ${money(totalPayable)} and request approval`}
             </button>
             <small className="payment-demo-notice">
               Project demonstration checkout. A production deployment requires official payment

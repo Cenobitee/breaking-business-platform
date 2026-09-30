@@ -5,6 +5,9 @@ import { useAuth } from '../auth/AuthContext'
 import { ChatWidget } from './ChatWidget'
 import { TeamQuickTools } from '../pages/TeamStructurePage'
 
+const moneyForNavigation = (value) =>
+  `৳${Number(value || 0).toLocaleString('en-BD', { maximumFractionDigits: 0 })}`
+
 export function AppLayout() {
   const { user, logout } = useAuth()
   const isOwner = user.role === 'OWNER'
@@ -17,6 +20,7 @@ export function AppLayout() {
   const [businessProfile, setBusinessProfile] = useState(null)
   const [personalProfile, setPersonalProfile] = useState(null)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [investorCycles, setInvestorCycles] = useState([])
   const notificationMenuRef = useRef(null)
 
   const refreshProfile = useCallback(async () => {
@@ -74,6 +78,21 @@ export function AppLayout() {
   }, [refreshNotifications, user.role])
 
   useEffect(() => {
+    if (!isInvestor) return undefined
+    const refreshInvestments = () =>
+      apiRequest('/investments/me')
+        .then((data) => setInvestorCycles(data.cycles || []))
+        .catch(() => {})
+    refreshInvestments()
+    const intervalId = window.setInterval(refreshInvestments, 10000)
+    window.addEventListener('financial-platform-investments-updated', refreshInvestments)
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('financial-platform-investments-updated', refreshInvestments)
+    }
+  }, [isInvestor])
+
+  useEffect(() => {
     function closeNotifications(event) {
       if (
         event.key === 'Escape' ||
@@ -129,6 +148,23 @@ export function AppLayout() {
                 <span aria-hidden="true">≡</span>History
               </NavLink>
             )}
+            {isInvestor && investorCycles.length > 0 && (
+              <p className="manager-nav-label manager-nav-section-label">My investments</p>
+            )}
+            {isInvestor &&
+              investorCycles.map((cycle) => (
+                <NavLink
+                  key={cycle.id}
+                  to={`/investor/investments/${cycle.id}`}
+                  className="investor-cycle-nav-link"
+                >
+                  <span aria-hidden="true">◉</span>
+                  <div>
+                    <strong>{cycle.projectName}</strong>
+                    <small>{moneyForNavigation(cycle.principal)}</small>
+                  </div>
+                </NavLink>
+              ))}
             {!isInvestor && (
               <NavLink to="/pos">
                 <span aria-hidden="true">▣</span>Point of sale
@@ -142,6 +178,27 @@ export function AppLayout() {
             {!isInvestor && (
               <NavLink to="/expenses">
                 <span aria-hidden="true">৳</span>Expenses
+              </NavLink>
+            )}
+            {isOwner && <p className="manager-nav-label manager-nav-section-label">Ownership</p>}
+            {isOwner && (
+              <NavLink to="/product-profit">
+                <span aria-hidden="true">↗</span>Product profit
+              </NavLink>
+            )}
+            {isOwner && (
+              <NavLink to="/investors">
+                <span aria-hidden="true">♟</span>Investor profiles
+              </NavLink>
+            )}
+            {isOwner && (
+              <NavLink to="/investment-management">
+                <span aria-hidden="true">৳</span>Investment management
+              </NavLink>
+            )}
+            {isOwner && (
+              <NavLink to="/investor">
+                <span aria-hidden="true">◉</span>Manage investment
               </NavLink>
             )}
             {!isInvestor && (
@@ -185,27 +242,6 @@ export function AppLayout() {
             {!isInvestor && (
               <NavLink to="/support">
                 <span aria-hidden="true">?</span>Support <small>Live</small>
-              </NavLink>
-            )}
-            {isOwner && <p className="manager-nav-label manager-nav-section-label">Ownership</p>}
-            {isOwner && (
-              <NavLink to="/investors">
-                <span aria-hidden="true">♟</span>Investor profiles
-              </NavLink>
-            )}
-            {isOwner && (
-              <NavLink to="/investment-management">
-                <span aria-hidden="true">৳</span>Investment management
-              </NavLink>
-            )}
-            {isOwner && (
-              <NavLink to="/investor">
-                <span aria-hidden="true">◉</span>Investor view
-              </NavLink>
-            )}
-            {isOwner && (
-              <NavLink to="/modules">
-                <span aria-hidden="true">◇</span>Planned modules
               </NavLink>
             )}
           </nav>

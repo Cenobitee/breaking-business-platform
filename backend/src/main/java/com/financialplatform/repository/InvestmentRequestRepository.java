@@ -4,6 +4,7 @@ import com.financialplatform.domain.AppUser;
 import com.financialplatform.domain.Business;
 import com.financialplatform.domain.InvestmentRequest;
 import com.financialplatform.domain.InvestmentRequestStatus;
+import com.financialplatform.domain.InvestmentPackage;
 import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +14,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface InvestmentRequestRepository extends JpaRepository<InvestmentRequest, Long> {
+  boolean existsByInvestmentPackage(InvestmentPackage investmentPackage);
   List<InvestmentRequest> findByInvestorOrderByRequestedAtDesc(AppUser investor);
 
   List<InvestmentRequest> findByStatusOrderByRequestedAtAsc(InvestmentRequestStatus status);

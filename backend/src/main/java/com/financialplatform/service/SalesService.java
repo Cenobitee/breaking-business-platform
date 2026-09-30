@@ -15,6 +15,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.LinkedHashSet;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,14 +100,43 @@ public class SalesService {
 
   @Transactional
   public int cancelToday(String userEmail) {
+    ZoneId zone = ZoneId.of("Asia/Dhaka");
+    return cancelByDate(LocalDate.now(zone), userEmail);
+  }
+
+  @Transactional
+  public int cancelByDate(LocalDate date, String userEmail) {
     AppUser user = users.findByEmailIgnoreCase(userEmail).orElseThrow();
     ZoneId zone = ZoneId.of("Asia/Dhaka");
-    LocalDate today = LocalDate.now(zone);
-    var start = today.atStartOfDay(zone).toInstant();
-    var end = today.plusDays(1).atStartOfDay(zone).toInstant();
-    List<Sale> todaysSales = sales.findActiveBetween(user.getBusiness(), start, end);
-    todaysSales.forEach(sale -> cancelSale(sale, user, "Bulk-deleted from today's order history"));
-    return todaysSales.size();
+    var start = date.atStartOfDay(zone).toInstant();
+    var end = date.plusDays(1).atStartOfDay(zone).toInstant();
+    List<Sale> selectedSales = sales.findActiveBetween(user.getBusiness(), start, end);
+    selectedSales.forEach(
+        sale -> cancelSale(sale, user, "Bulk-deleted for business date " + date));
+    return selectedSales.size();
+  }
+
+  @Transactional
+  public int cancelSelected(List<Long> requestedIds, String userEmail) {
+    AppUser user = users.findByEmailIgnoreCase(userEmail).orElseThrow();
+    var uniqueIds = new LinkedHashSet<>(requestedIds);
+    List<Sale> selectedSales = sales.findAllById(uniqueIds);
+    if (selectedSales.size() != uniqueIds.size()
+        || selectedSales.stream()
+            .anyMatch(
+                sale ->
+                    !sale.getCreatedBy()
+                        .getBusiness()
+                        .getId()
+                        .equals(user.getBusiness().getId()))) {
+      throw new IllegalArgumentException("One or more selected orders were not found");
+    }
+    if (selectedSales.stream().anyMatch(cancellations::existsBySale)) {
+      throw new IllegalArgumentException("One or more selected orders were already deleted");
+    }
+    selectedSales.forEach(
+        sale -> cancelSale(sale, user, "Bulk-deleted from selected order history records"));
+    return selectedSales.size();
   }
 
   private void cancelSale(Sale sale, AppUser user, String reason) {

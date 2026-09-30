@@ -1,0 +1,2 @@
+ALTER TABLE investment_packages
+    ADD COLUMN active BOOLEAN NOT NULL DEFAULT TRUE;

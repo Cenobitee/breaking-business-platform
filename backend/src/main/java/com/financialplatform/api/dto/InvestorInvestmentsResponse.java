@@ -6,4 +6,5 @@ import java.util.List;
 public record InvestorInvestmentsResponse(
     BigDecimal totalInvested,
     List<InvestmentRequestResponse> requests,
-    List<InvestmentHistoryResponse> history) {}
+    List<InvestmentHistoryResponse> history,
+    List<InvestmentCycleResponse> cycles) {}

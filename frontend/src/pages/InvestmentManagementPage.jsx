@@ -9,6 +9,8 @@ const dateTime = (value) => new Date(value).toLocaleString('en-BD')
 export function InvestmentManagementPage() {
   const { user } = useAuth()
   const [activeInvestments, setActiveInvestments] = useState([])
+  const [cycles, setCycles] = useState([])
+  const [completingId, setCompletingId] = useState(null)
   const [removingId, setRemovingId] = useState(null)
   const [deletingHistory, setDeletingHistory] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -17,7 +19,12 @@ export function InvestmentManagementPage() {
 
   const load = useCallback(async () => {
     try {
-      setActiveInvestments(await apiRequest('/investments/active'))
+      const [investmentsData, cycleData] = await Promise.all([
+        apiRequest('/investments/active'),
+        apiRequest('/investments/cycles'),
+      ])
+      setActiveInvestments(investmentsData)
+      setCycles(cycleData)
       setError('')
     } catch (requestError) {
       setError(requestError.message)
@@ -69,6 +76,27 @@ export function InvestmentManagementPage() {
       setError(requestError.message)
     } finally {
       setDeletingHistory(false)
+    }
+  }
+
+  async function completeCycle(cycle) {
+    if (
+      !window.confirm(
+        `Finalize the cycle for ${cycle.investorName}? This locks its profit calculation.`,
+      )
+    )
+      return
+    setCompletingId(cycle.id)
+    setError('')
+    setNotice('')
+    try {
+      await apiRequest(`/investments/cycles/${cycle.id}/complete`, { method: 'POST' })
+      setNotice(`The cycle for ${cycle.investorName} was finalized.`)
+      await load()
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setCompletingId(null)
     }
   }
 
@@ -140,6 +168,85 @@ export function InvestmentManagementPage() {
               {activeInvestments.length === 0 && (
                 <tr>
                   <td colSpan="5">No active invested amounts.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="panel investment-cycle-panel">
+        <div className="panel-title-row">
+          <div>
+            <p className="eyebrow">Profit settlements</p>
+            <h2>Investment cycles</h2>
+          </div>
+          <span className="owner-muted-count">Fixed project tenure</span>
+        </div>
+        <p>
+          Each cycle starts at approval. The live estimate uses only sales and expenses recorded
+          during that cycle. Finalize it after its end date to lock the investor’s return.
+        </p>
+        <div className="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Investor</th>
+                <th>Period</th>
+                <th>Principal</th>
+                <th>Unit share</th>
+                <th>Sales − costs</th>
+                <th>Investor profit</th>
+                <th>Settlement</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cycles.map((cycle) => {
+                const canComplete =
+                  cycle.status === 'ACTIVE' && Date.now() >= new Date(cycle.endsAt).getTime()
+                return (
+                  <tr key={cycle.id}>
+                    <td>{cycle.investorName}</td>
+                    <td>
+                      {dateTime(cycle.startsAt)}
+                      <br />
+                      <small>to {dateTime(cycle.endsAt)}</small>
+                    </td>
+                    <td>{money(cycle.principal)}</td>
+                    <td>{Number(cycle.capitalSharePercentage).toFixed(2)}%</td>
+                    <td>{money(cycle.distributableProfit)}</td>
+                    <td>{money(cycle.investorProfit)}</td>
+                    <td>{money(cycle.settlementTotal)}</td>
+                    <td>
+                      {cycle.status !== 'ACTIVE' ? (
+                        <span className="role-label status-completed">{cycle.status === 'WITHDRAWN' ? 'Withdrawn' : 'Ready'}</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="table-action"
+                          disabled={!canComplete || completingId === cycle.id}
+                          onClick={() => completeCycle(cycle)}
+                          title={
+                            canComplete
+                              ? 'Lock the final settlement'
+                              : 'Available after the cycle ends'
+                          }
+                        >
+                          {completingId === cycle.id
+                            ? 'Finalizing…'
+                            : canComplete
+                              ? 'Finalize cycle'
+                              : 'Cycle active'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+              {cycles.length === 0 && (
+                <tr>
+                  <td colSpan="8">No investment cycles yet.</td>
                 </tr>
               )}
             </tbody>

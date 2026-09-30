@@ -17,6 +17,8 @@ export function UserProfilePage() {
     profileImageDataUrl: null,
   })
   const [saving, setSaving] = useState(false)
+  const [updatingAccess, setUpdatingAccess] = useState(false)
+  const [deletingProfile, setDeletingProfile] = useState(false)
   const [removingPhoto, setRemovingPhoto] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -118,6 +120,51 @@ export function UserProfilePage() {
     }
   }
 
+  async function changeAccess() {
+    const nextActive = !profile.active
+    setUpdatingAccess(true)
+    setError('')
+    setNotice('')
+    try {
+      const updated = await apiRequest(`/profile/members/${userId}/access`, {
+        method: 'PATCH',
+        body: JSON.stringify({ active: nextActive }),
+      })
+      setProfile(updated)
+      setForm(updated)
+      setNotice(
+        nextActive
+          ? 'Account access is active. This person can sign in again.'
+          : 'Account access is inactive. This person can no longer sign in.',
+      )
+    } catch (requestError) {
+      setError(requestError.message)
+    } finally {
+      setUpdatingAccess(false)
+    }
+  }
+
+  async function deleteProfile() {
+    if (
+      !window.confirm(
+        `Delete ${profile.fullName}'s profile? They will lose access and disappear from the directory. Financial audit records will be preserved.`,
+      )
+    )
+      return
+    setDeletingProfile(true)
+    setError('')
+    try {
+      await apiRequest(`/profile/members/${userId}`, { method: 'DELETE' })
+      navigate('/operations', {
+        replace: true,
+        state: { notice: `${profile.fullName}'s profile was deleted.` },
+      })
+    } catch (requestError) {
+      setError(requestError.message)
+      setDeletingProfile(false)
+    }
+  }
+
   if (!profile && !error) return <p>Loading profile…</p>
   const canEditOfficial = ownerMode || profile?.ownerEditingAllowed
   return (
@@ -144,114 +191,152 @@ export function UserProfilePage() {
         </p>
       )}
       {profile && (
-        <form className="panel user-profile-form" onSubmit={save}>
-          <aside className="profile-photo-editor">
-            <div>
-              {form.profileImageDataUrl ? (
-                <img src={form.profileImageDataUrl} alt="Profile" />
-              ) : (
-                <span>{profile.fullName?.slice(0, 1).toUpperCase()}</span>
-              )}
-            </div>
-            {!ownerMode && (
-              <>
-                <label className="button-like">
-                  Choose photo
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={selectPhoto}
-                  />
-                </label>
-                {form.profileImageDataUrl && (
-                  <button
-                    type="button"
-                    className="secondary"
-                    disabled={removingPhoto}
-                    onClick={removePhoto}
-                  >
-                    {removingPhoto ? 'Removing…' : 'Remove photo'}
-                  </button>
+        <>
+          <form className="panel user-profile-form" onSubmit={save}>
+            <aside className="profile-photo-editor">
+              <div>
+                {form.profileImageDataUrl ? (
+                  <img src={form.profileImageDataUrl} alt="Profile" />
+                ) : (
+                  <span>{profile.fullName?.slice(0, 1).toUpperCase()}</span>
                 )}
-                <small>PNG, JPEG, or WebP; maximum 700 KB.</small>
-              </>
-            )}
-          </aside>
-          <section className="profile-fields">
-            <label>
-              Full name
-              <input
-                required={canEditOfficial}
-                value={form.fullName || ''}
-                readOnly={!canEditOfficial}
-                onChange={(event) => setForm({ ...form, fullName: event.target.value })}
-              />
-              <small>
-                {canEditOfficial
-                  ? 'You can update this official name.'
-                  : 'Only the Owner can change this field.'}
-              </small>
-            </label>
-            <label>
-              Phone number
-              <input
-                value={form.phone || ''}
-                readOnly={!canEditOfficial}
-                placeholder={canEditOfficial ? 'Enter phone number' : 'Not added by Owner'}
-                onChange={(event) => setForm({ ...form, phone: event.target.value })}
-              />
-              <small>
-                {canEditOfficial ? 'Editable by Owner' : 'Only the Owner can change this field.'}
-              </small>
-            </label>
-            <label>
-              Personal email
-              <input
-                type="email"
-                value={form.contactEmail || ''}
-                readOnly={ownerMode}
-                onChange={(event) => setForm({ ...form, contactEmail: event.target.value })}
-              />
-              <small>
-                {ownerMode
-                  ? 'Provided by the user; visible to Owners and Investors.'
-                  : 'Your personal contact email. It does not change your login.'}
-              </small>
-            </label>
-            <label className="profile-full-field">
-              Address
-              <textarea
-                rows="4"
-                maxLength="500"
-                value={form.address || ''}
-                readOnly={ownerMode}
-                onChange={(event) => setForm({ ...form, address: event.target.value })}
-              />
-            </label>
-            <label>
-              Role
-              <input value={profile.role} readOnly />
-            </label>
-            <label>
-              Account login email
-              <input
-                required={canEditOfficial}
-                type="email"
-                value={form.loginEmail || ''}
-                readOnly={!canEditOfficial}
-                onChange={(event) => setForm({ ...form, loginEmail: event.target.value })}
-              />
-              <small>
-                {canEditOfficial
-                  ? 'Changing this changes the email used for your next login.'
-                  : 'Assigned by the Owner and used only to sign in.'}
-              </small>
-            </label>
-            <button className="profile-full-field" type="submit" disabled={saving}>
-              {saving ? 'Saving…' : ownerMode ? 'Save official details' : 'Save profile changes'}
-            </button>
-          </section>
-        </form>
+              </div>
+              {!ownerMode && (
+                <>
+                  <label className="button-like">
+                    Choose photo
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={selectPhoto}
+                    />
+                  </label>
+                  {form.profileImageDataUrl && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={removingPhoto}
+                      onClick={removePhoto}
+                    >
+                      {removingPhoto ? 'Removing…' : 'Remove photo'}
+                    </button>
+                  )}
+                  <small>PNG, JPEG, or WebP; maximum 700 KB.</small>
+                </>
+              )}
+            </aside>
+            <section className="profile-fields">
+              <label>
+                Full name
+                <input
+                  required={canEditOfficial}
+                  value={form.fullName || ''}
+                  readOnly={!canEditOfficial}
+                  onChange={(event) => setForm({ ...form, fullName: event.target.value })}
+                />
+                <small>
+                  {canEditOfficial
+                    ? 'You can update this official name.'
+                    : 'Only the Owner can change this field.'}
+                </small>
+              </label>
+              <label>
+                Phone number
+                <input
+                  value={form.phone || ''}
+                  readOnly={!canEditOfficial}
+                  placeholder={canEditOfficial ? 'Enter phone number' : 'Not added by Owner'}
+                  onChange={(event) => setForm({ ...form, phone: event.target.value })}
+                />
+                <small>
+                  {canEditOfficial ? 'Editable by Owner' : 'Only the Owner can change this field.'}
+                </small>
+              </label>
+              <label>
+                Personal email
+                <input
+                  type="email"
+                  value={form.contactEmail || ''}
+                  readOnly={ownerMode}
+                  onChange={(event) => setForm({ ...form, contactEmail: event.target.value })}
+                />
+                <small>
+                  {ownerMode
+                    ? 'Provided by the user; visible to Owners and Investors.'
+                    : 'Your personal contact email. It does not change your login.'}
+                </small>
+              </label>
+              <label className="profile-full-field">
+                Address
+                <textarea
+                  rows="4"
+                  maxLength="500"
+                  value={form.address || ''}
+                  readOnly={ownerMode}
+                  onChange={(event) => setForm({ ...form, address: event.target.value })}
+                />
+              </label>
+              <label>
+                Role
+                <input value={profile.role} readOnly />
+              </label>
+              <label>
+                Account login email
+                <input
+                  required={canEditOfficial}
+                  type="email"
+                  value={form.loginEmail || ''}
+                  readOnly={!canEditOfficial}
+                  onChange={(event) => setForm({ ...form, loginEmail: event.target.value })}
+                />
+                <small>
+                  {canEditOfficial
+                    ? 'Changing this changes the email used for your next login.'
+                    : 'Assigned by the Owner and used only to sign in.'}
+                </small>
+              </label>
+              <button className="profile-full-field" type="submit" disabled={saving}>
+                {saving ? 'Saving…' : ownerMode ? 'Save official details' : 'Save profile changes'}
+              </button>
+            </section>
+          </form>
+          {ownerMode && profile.role !== 'OWNER' && (
+            <section className="panel profile-access-controls">
+              <div>
+                <p className="eyebrow">Account access</p>
+                <h2>Manage access</h2>
+                <p>
+                  {profile.active
+                    ? 'Active — this person can currently sign in.'
+                    : 'Inactive — this person cannot sign in.'}
+                </p>
+              </div>
+              <label className="investment-visibility-switch profile-access-switch">
+                <span>{updatingAccess ? 'Updating…' : profile.active ? 'Active' : 'Inactive'}</span>
+                <input
+                  type="checkbox"
+                  checked={profile.active}
+                  disabled={updatingAccess || deletingProfile}
+                  onChange={changeAccess}
+                  aria-label={`${profile.active ? 'Deactivate' : 'Activate'} ${profile.fullName}'s access`}
+                />
+                <i aria-hidden="true" />
+              </label>
+              <div className="profile-delete-control">
+                <strong>Delete profile</strong>
+                <p>Removes this account from the directory and permanently blocks sign-in.</p>
+                <button
+                  type="button"
+                  className="danger"
+                  disabled={deletingProfile || updatingAccess}
+                  onClick={deleteProfile}
+                >
+                  {deletingProfile ? 'Deleting…' : 'Delete profile'}
+                </button>
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   )

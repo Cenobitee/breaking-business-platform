@@ -24,6 +24,7 @@ public class UserDirectoryService {
   public List<UserResponse> list(String requestingEmail) {
     AppUser requester = requireUser(requestingEmail);
     return users.findByBusinessOrderByFullName(requester.getBusiness()).stream()
+        .filter(user -> !user.isProfileDeleted())
         .map(user -> UserResponse.from(user, requester.getRole() == Role.OWNER))
         .toList();
   }

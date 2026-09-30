@@ -7,7 +7,6 @@ import { SignupPage } from './pages/SignupPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { OperationsDashboard } from './pages/OperationsDashboard'
-import { PlannedModulesPage } from './pages/PlannedModulesPage'
 import { LiveDateTime } from './components/LiveDateTime'
 import { BusinessProfilePage } from './pages/BusinessProfilePage'
 import { LandingPage } from './pages/LandingPage'
@@ -26,6 +25,8 @@ import { BudgetCheckPage } from './pages/BudgetCheckPage'
 import { InvestorDirectoryPage } from './pages/InvestorDirectoryPage'
 import { InvestmentManagementPage } from './pages/InvestmentManagementPage'
 import { InvestmentPaymentPage } from './pages/InvestmentPaymentPage'
+import { ProductProfitPage } from './pages/ProductProfitPage'
+import { InvestmentDetailPage } from './pages/InvestmentDetailPage'
 
 export function App() {
   return (
@@ -65,10 +66,13 @@ export function App() {
               <Route path="/investor/history" element={<InvestorDashboard view="history" />} />
               <Route path="/investor/payment" element={<InvestmentPaymentPage />} />
             </Route>
+            <Route element={<ProtectedRoute roles={['INVESTOR']} />}>
+              <Route path="/investor/investments/:cycleId" element={<InvestmentDetailPage />} />
+            </Route>
             <Route element={<ProtectedRoute roles={['OWNER']} />}>
+              <Route path="/product-profit" element={<ProductProfitPage />} />
               <Route path="/investors" element={<InvestorDirectoryPage />} />
               <Route path="/investment-management" element={<InvestmentManagementPage />} />
-              <Route path="/modules" element={<PlannedModulesPage />} />
               <Route path="/profile/:userId" element={<UserProfilePage />} />
             </Route>
           </Route>

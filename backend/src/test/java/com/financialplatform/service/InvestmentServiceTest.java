@@ -16,11 +16,15 @@ import com.financialplatform.domain.InvestmentRequestStatus;
 import com.financialplatform.domain.InvestmentTransaction;
 import com.financialplatform.domain.Role;
 import com.financialplatform.repository.InvestmentHistoryPurgeRepository;
+import com.financialplatform.repository.InvestmentCycleRepository;
 import com.financialplatform.repository.InvestmentPackageRepository;
 import com.financialplatform.repository.InvestmentRemovalRepository;
 import com.financialplatform.repository.InvestmentRequestRepository;
 import com.financialplatform.repository.InvestmentTransactionRepository;
 import com.financialplatform.repository.UserRepository;
+import com.financialplatform.repository.SaleRepository;
+import com.financialplatform.repository.ExpenseRepository;
+import com.financialplatform.repository.CatalogProductRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
@@ -38,6 +42,24 @@ class InvestmentServiceTest {
   @Mock UserRepository users;
   @Mock InvestmentHistoryPurgeRepository historyPurge;
   @Mock InvestmentPackageRepository packages;
+  @Mock InvestmentCycleRepository cycles;
+  @Mock SaleRepository sales;
+  @Mock ExpenseRepository expenses;
+  @Mock CatalogProductRepository products;
+
+  private InvestmentService service() {
+    return new InvestmentService(
+        requests,
+        transactions,
+        removals,
+        users,
+        historyPurge,
+        packages,
+        cycles,
+        sales,
+        expenses,
+        products);
+  }
 
   @Test
   void investorCreatesAPendingRequest() {
@@ -45,18 +67,18 @@ class InvestmentServiceTest {
     AppUser investor =
         new AppUser("Investor", "investor@example.com", "hash", Role.INVESTOR, business);
     when(users.findByEmailIgnoreCase("investor@example.com")).thenReturn(Optional.of(investor));
-    when(packages.findByBusinessAndAmount(business, new BigDecimal("25000.00")))
-        .thenReturn(
-            Optional.of(
-                new InvestmentPackage(
-                    business, new BigDecimal("25000.00"), new BigDecimal("20.00"))));
+    InvestmentPackage investmentPackage =
+        new InvestmentPackage(business, new BigDecimal("25000.00"), new BigDecimal("20.00"));
+    when(packages.findForUpdateById(3L)).thenReturn(Optional.of(investmentPackage));
     when(requests.save(any(InvestmentRequest.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
-    var response = service.requestInvestment(new BigDecimal("25000.00"), "investor@example.com");
+    var service = service();
+    var response = service.requestInvestment(3L, 2, "investor@example.com");
 
-    assertThat(response.amount()).isEqualByComparingTo("25000.00");
+    assertThat(response.amount()).isEqualByComparingTo("50000.00");
+    assertThat(response.quantity()).isEqualTo(2);
+    assertThat(investmentPackage.getRemainingUnits()).isEqualTo(98);
     assertThat(response.status()).isEqualTo(InvestmentRequestStatus.PENDING);
     assertThat(response.requestedAt()).isNotNull();
   }
@@ -74,7 +96,7 @@ class InvestmentServiceTest {
     when(transactions.save(any(InvestmentTransaction.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
+    var service = service();
     var response = service.approve(7L, "owner@example.com");
 
     ArgumentCaptor<InvestmentTransaction> captor =
@@ -100,7 +122,7 @@ class InvestmentServiceTest {
     when(requests.findForUpdateById(9L)).thenReturn(Optional.of(request));
     when(users.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
+    var service = service();
 
     assertThatThrownBy(() -> service.approve(9L, "owner@example.com"))
         .isInstanceOf(IllegalArgumentException.class)
@@ -118,7 +140,7 @@ class InvestmentServiceTest {
     when(requests.findForUpdateById(12L)).thenReturn(Optional.of(request));
     when(users.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
+    var service = service();
     service.deletePendingRequest(12L, "owner@example.com");
 
     verify(requests).delete(request);
@@ -136,7 +158,7 @@ class InvestmentServiceTest {
     when(requests.findForUpdateById(13L)).thenReturn(Optional.of(request));
     when(users.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
+    var service = service();
 
     assertThatThrownBy(() -> service.deletePendingRequest(13L, "owner@example.com"))
         .isInstanceOf(IllegalArgumentException.class)
@@ -161,7 +183,7 @@ class InvestmentServiceTest {
     when(removals.save(any(InvestmentRemoval.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
+    var service = service();
     var response = service.remove(15L, "owner@example.com");
 
     assertThat(response.status()).isEqualTo("REMOVED");
@@ -178,7 +200,7 @@ class InvestmentServiceTest {
     when(users.findByEmailIgnoreCase("owner@example.com")).thenReturn(Optional.of(owner));
     when(historyPurge.purgeForBusiness(44L)).thenReturn(6);
 
-    var service = new InvestmentService(requests, transactions, removals, users, historyPurge, packages);
+    var service = service();
 
     assertThat(service.deleteAllHistory("owner@example.com")).isEqualTo(6);
     verify(historyPurge).purgeForBusiness(44L);

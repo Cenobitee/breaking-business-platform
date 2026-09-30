@@ -186,7 +186,17 @@ export function OperationsDashboard() {
         <section className="metrics-grid" aria-label="Daily metrics">
           <MetricCard label="Revenue" value={money(analytics.revenue)} context={analytics.date} />
           <MetricCard label="Orders" value={analytics.orderCount} />
-          <MetricCard label="Average order value" value={money(analytics.averageOrderValue)} />
+          <MetricCard
+            label={user.role === 'OWNER' ? 'Actual profit today' : 'Average order value'}
+            value={money(
+              user.role === 'OWNER' ? analytics.actualProfit : analytics.averageOrderValue,
+            )}
+            context={
+              user.role === 'OWNER'
+                ? `Sales − ${money(analytics.productCost)} product cost − expenses`
+                : undefined
+            }
+          />
           <MetricCard label="Daily expenses" value={money(analytics.expenses)} />
         </section>
       )}

@@ -26,6 +26,9 @@ public class AppUser {
   @Column(nullable = false)
   private boolean active = true;
 
+  @Column(name = "profile_deleted", nullable = false)
+  private boolean profileDeleted = false;
+
   @Column(name = "contact_email", length = 254)
   private String contactEmail;
 
@@ -83,6 +86,10 @@ public class AppUser {
     return active;
   }
 
+  public boolean isProfileDeleted() {
+    return profileDeleted;
+  }
+
   public Business getBusiness() {
     return business;
   }
@@ -123,5 +130,15 @@ public class AppUser {
 
   public void changePassword(String passwordHash) {
     this.passwordHash = passwordHash;
+  }
+
+  public void updateAccess(boolean active) {
+    if (profileDeleted) throw new IllegalStateException("Deleted profiles cannot be reactivated");
+    this.active = active;
+  }
+
+  public void deleteProfile() {
+    this.active = false;
+    this.profileDeleted = true;
   }
 }
