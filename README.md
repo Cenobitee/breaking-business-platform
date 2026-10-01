@@ -7,7 +7,8 @@ Breaking Business is a full-stack business operations and investment-transparenc
 - Java 21 and Spring Boot 3.4
 - Spring Security with signed JWT access tokens
 - PostgreSQL 16 with Flyway database migrations
-- React 18, React Router, and Vite 8
+- JavaScript with React 18, React Router, and Vite 8 for the frontend
+- CSS for the responsive application interface and component styling
 - Docker Compose for the local database
 
 ## Main features
