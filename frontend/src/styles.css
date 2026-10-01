@@ -5965,19 +5965,21 @@ th {
   font-size: 0.8rem;
   font-weight: 650;
 }
-.product-multiselect summary span::after {
-  content: '⌄';
+.product-multiselect summary svg {
   width: 24px;
   height: 24px;
-  display: grid;
-  place-items: center;
+  flex: 0 0 auto;
+  padding: 5px;
   border-radius: 7px;
-  color: #17683a;
   background: #e8f3eb;
-  font-size: 1rem;
+  fill: none;
+  stroke: #17683a;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
   transition: transform 0.18s ease;
 }
-.product-multiselect[open] summary span::after {
+.product-multiselect[open] summary svg {
   transform: rotate(180deg);
 }
 .product-multiselect > div {
@@ -6157,13 +6159,115 @@ th {
   font-size: 0.9rem;
   font-weight: 800;
 }
-.investment-feed-summary > button {
-  width: 100%;
-  padding: 0.65rem 1rem;
-  background: #27b963;
+.investment-feed-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
 }
-.investment-feed-summary > button:hover {
+.investment-feed-actions button {
+  min-height: 42px;
+  padding: 0.65rem 1.15rem;
+}
+.investment-feed-actions button:first-child {
+  color: #17683d;
+  border-color: #c8dfd0;
+  background: #f2f8f4;
+}
+.investment-feed-actions button:first-child:hover {
+  border-color: #91bea1;
+  background: #e7f3eb;
+}
+.investment-feed-actions button:last-child {
+  min-width: 105px;
+  background: #27b963;
+  box-shadow: 0 6px 14px rgba(23, 139, 72, 0.18);
+}
+.investment-feed-actions button:last-child:hover {
   background: #169a4d;
+}
+.investment-booking-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(7, 26, 15, 0.62);
+  backdrop-filter: blur(4px);
+}
+.investment-booking-modal {
+  width: min(470px, 100%);
+  padding: clamp(1.2rem, 3vw, 1.75rem);
+  border: 1px solid #d4e4d9;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(4, 26, 14, 0.3);
+}
+.investment-booking-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.investment-booking-heading h2 {
+  margin: 0.25rem 0 0;
+  color: #123c27;
+  font-size: 1.35rem;
+}
+.investment-booking-heading button {
+  padding: 0.55rem 0.8rem;
+}
+.investment-booking-price,
+.investment-booking-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.investment-booking-price {
+  margin: 1.15rem 0;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  color: #285b3d;
+  background: #edf7f0;
+}
+.investment-booking-price strong {
+  color: #08723c;
+  font-size: 1.05rem;
+}
+.investment-booking-modal form,
+.investment-booking-modal label {
+  display: grid;
+  gap: 0.65rem;
+}
+.investment-booking-modal label {
+  color: #1c3828;
+  font-weight: 750;
+}
+.investment-booking-modal label small {
+  color: #6d7d74;
+  font-size: 0.72rem;
+  font-weight: 450;
+  line-height: 1.45;
+}
+.investment-booking-modal input {
+  min-height: 46px;
+}
+.investment-booking-total {
+  margin-top: 0.25rem;
+  padding: 0.9rem 0;
+  border-top: 1px solid #dbe7de;
+  border-bottom: 1px solid #dbe7de;
+}
+.investment-booking-total strong {
+  color: #08723c;
+  font-size: 1.12rem;
+}
+.investment-booking-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
 }
 .investment-opportunity-modal-backdrop {
   position: fixed;
@@ -6542,6 +6646,23 @@ th {
   .investment-distribution-summary ol,
   .investment-opportunity-action {
     grid-template-columns: 1fr;
+  }
+  .investment-feed-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .investment-booking-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .investment-booking-heading button {
+    align-self: flex-end;
+  }
+  .investment-booking-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .investment-booking-actions button[type='submit'] {
+    grid-row: 1;
   }
   .investment-opportunity-heading {
     align-items: stretch;

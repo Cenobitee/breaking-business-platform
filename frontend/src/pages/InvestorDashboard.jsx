@@ -24,6 +24,7 @@ export function InvestorDashboard({ view = 'overview' }) {
   const [changingVisibilityId, setChangingVisibilityId] = useState(null)
   const [editingPackage, setEditingPackage] = useState(null)
   const [viewingPackage, setViewingPackage] = useState(null)
+  const [bookingPackage, setBookingPackage] = useState(null)
   const [newPackageImages, setNewPackageImages] = useState([])
   const [editingPackageImages, setEditingPackageImages] = useState([])
   const [cropSource, setCropSource] = useState(null)
@@ -81,6 +82,23 @@ export function InvestorDashboard({ view = 'overview' }) {
     }
     navigate('/investor/payment', {
       state: { investmentPackage: viewingPackage, quantity },
+    })
+  }
+
+  function openBooking(investmentPackage) {
+    setBookingPackage(investmentPackage)
+    setQuantity(1)
+  }
+
+  function confirmBooking(event) {
+    event.preventDefault()
+    const maximum = Math.min(bookingPackage.remainingUnits, bookingPackage.maxUnitsPerInvestor)
+    if (!quantity || quantity < 1 || quantity > maximum) {
+      setError('Choose a valid quantity before continuing.')
+      return
+    }
+    navigate('/investor/payment', {
+      state: { investmentPackage: bookingPackage, quantity },
     })
   }
 
@@ -594,15 +612,27 @@ export function InvestorDashboard({ view = 'overview' }) {
                             <small className="investment-feed-limit">
                               Maximum {investmentPackage.maxUnitsPerInvestor} units per investor
                             </small>
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                openOpportunity(investmentPackage)
-                              }}
-                            >
-                              View details
-                            </button>
+                            <div className="investment-feed-actions">
+                              <button
+                                type="button"
+                                className="secondary"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  openOpportunity(investmentPackage)
+                                }}
+                              >
+                                View details
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  openBooking(investmentPackage)
+                                }}
+                              >
+                                Book
+                              </button>
+                            </div>
                           </div>
                         </article>
                       )
@@ -846,6 +876,75 @@ export function InvestorDashboard({ view = 'overview' }) {
                 </div>
               )}
 
+              {bookingPackage && (
+                <div
+                  className="investment-booking-backdrop"
+                  role="presentation"
+                  onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) setBookingPackage(null)
+                  }}
+                >
+                  <section
+                    className="investment-booking-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="investment-booking-title"
+                  >
+                    <div className="investment-booking-heading">
+                      <div>
+                        <p className="eyebrow">Book investment units</p>
+                        <h2 id="investment-booking-title">{bookingPackage.projectName}</h2>
+                      </div>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => setBookingPackage(null)}
+                      >
+                        Close
+                      </button>
+                    </div>
+                    <div className="investment-booking-price">
+                      <span>Price per unit</span>
+                      <strong>{money(bookingPackage.amount)}</strong>
+                    </div>
+                    <form onSubmit={confirmBooking}>
+                      <label>
+                        How many units do you want to book?
+                        <input
+                          type="number"
+                          min="1"
+                          max={Math.min(
+                            bookingPackage.remainingUnits,
+                            bookingPackage.maxUnitsPerInvestor,
+                          )}
+                          value={quantity}
+                          onChange={(event) => setQuantity(Number(event.target.value))}
+                          required
+                        />
+                        <small>
+                          Maximum {bookingPackage.maxUnitsPerInvestor} units per investor;{' '}
+                          {bookingPackage.remainingUnits} currently available.
+                        </small>
+                      </label>
+                      <div className="investment-booking-total">
+                        <span>Total payable</span>
+                        <strong>{money(Number(bookingPackage.amount) * quantity)}</strong>
+                      </div>
+                      <div className="investment-booking-actions">
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => setBookingPackage(null)}
+                        >
+                          Cancel
+                        </button>
+                        <button type="submit">Confirm and continue to payment</button>
+                      </div>
+                    </form>
+                  </section>
+                </div>
+              )}
+
               {view === 'history' && (
                 <section className="panel investor-record-panel">
                   <div className="panel-title-row">
@@ -1019,7 +1118,12 @@ export function InvestorDashboard({ view = 'overview' }) {
                   <span>Products connected to this project</span>
                   <details className="product-multiselect">
                     <summary>
-                      <span>Select products</span>
+                      <span>
+                        Select products
+                        <svg viewBox="0 0 16 16" aria-hidden="true">
+                          <path d="m4 6 4 4 4-4" />
+                        </svg>
+                      </span>
                     </summary>
                     <div>
                       {products.map((product) => (
@@ -1328,7 +1432,12 @@ export function InvestorDashboard({ view = 'overview' }) {
                         <span>Products connected to this project</span>
                         <details className="product-multiselect">
                           <summary>
-                            <span>Select products</span>
+                            <span>
+                              Select products
+                              <svg viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="m4 6 4 4 4-4" />
+                              </svg>
+                            </span>
                           </summary>
                           <div>
                             {products.map((product) => (
