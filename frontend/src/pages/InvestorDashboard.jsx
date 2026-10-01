@@ -1015,20 +1015,23 @@ export function InvestorDashboard({ view = 'overview' }) {
                   <input name="maxUnitsPerInvestor" type="number" min="1" required />
                   <small>One investor cannot request more than this total.</small>
                 </label>
-                <details className="product-multiselect">
-                  <summary>
-                    Products connected to this project <span>Select products</span>
-                  </summary>
-                  <div>
-                    {products.map((product) => (
-                      <label key={product.id}>
-                        <input name="productIds" type="checkbox" value={product.id} />
-                        {product.name}
-                      </label>
-                    ))}
-                    {!products.length && <small>Add products in Point of sale first.</small>}
-                  </div>
-                </details>
+                <div className="product-selector-field">
+                  <span>Products connected to this project</span>
+                  <details className="product-multiselect">
+                    <summary>
+                      <span>Select products</span>
+                    </summary>
+                    <div>
+                      {products.map((product) => (
+                        <label key={product.id}>
+                          <input name="productIds" type="checkbox" value={product.id} />
+                          {product.name}
+                        </label>
+                      ))}
+                      {!products.length && <small>Add products in Point of sale first.</small>}
+                    </div>
+                  </details>
+                </div>
                 <label className="investment-post-visibility investment-post-wide">
                   <input name="active" type="checkbox" defaultChecked />
                   <span>
@@ -1321,25 +1324,30 @@ export function InvestorDashboard({ view = 'overview' }) {
                         />
                         <small>Existing investor commitments cannot exceed the new limit.</small>
                       </label>
-                      <details className="product-multiselect">
-                        <summary>
-                          Products connected to this project <span>Select products</span>
-                        </summary>
-                        <div>
-                          {products.map((product) => (
-                            <label key={product.id}>
-                              <input
-                                name="productIds"
-                                type="checkbox"
-                                value={product.id}
-                                defaultChecked={editingPackage.productIds?.includes(product.id)}
-                              />
-                              {product.name}
-                            </label>
-                          ))}
-                          {!products.length && <small>Add products in Point of sale first.</small>}
-                        </div>
-                      </details>
+                      <div className="product-selector-field">
+                        <span>Products connected to this project</span>
+                        <details className="product-multiselect">
+                          <summary>
+                            <span>Select products</span>
+                          </summary>
+                          <div>
+                            {products.map((product) => (
+                              <label key={product.id}>
+                                <input
+                                  name="productIds"
+                                  type="checkbox"
+                                  value={product.id}
+                                  defaultChecked={editingPackage.productIds?.includes(product.id)}
+                                />
+                                {product.name}
+                              </label>
+                            ))}
+                            {!products.length && (
+                              <small>Add products in Point of sale first.</small>
+                            )}
+                          </div>
+                        </details>
+                      </div>
                       <div className="investment-edit-actions investment-post-wide">
                         <button
                           type="button"

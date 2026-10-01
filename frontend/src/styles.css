@@ -5915,19 +5915,39 @@ th {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+.product-selector-field {
+  min-width: 0;
+  display: grid;
+  align-content: end;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+.product-selector-field > span {
+  color: #26372d;
+  font-size: 0.84rem;
+}
 .product-multiselect {
   position: relative;
   z-index: 4;
   border: 1px solid #cbd9cf;
-  border-radius: 11px;
+  border-radius: 10px;
+  background: #fbfdfb;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+.product-multiselect:hover,
+.product-multiselect[open] {
+  border-color: #73a889;
   background: #fff;
+  box-shadow: 0 0 0 3px rgba(23, 104, 58, 0.09);
 }
 .product-multiselect summary {
+  min-height: 46px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 0.9rem;
+  padding: 0.65rem 0.8rem;
   font-weight: 700;
   cursor: pointer;
   list-style: none;
@@ -5936,16 +5956,24 @@ th {
   display: none;
 }
 .product-multiselect summary span {
+  width: 100%;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.45rem;
-  color: #63746a;
-  font-size: 0.78rem;
-  font-weight: 600;
+  color: #52665a;
+  font-size: 0.8rem;
+  font-weight: 650;
 }
 .product-multiselect summary span::after {
   content: '⌄';
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
   color: #17683a;
+  background: #e8f3eb;
   font-size: 1rem;
   transition: transform 0.18s ease;
 }
