@@ -17,14 +17,21 @@ export function InvestorDashboard({ view = 'overview' }) {
   const [investments, setInvestments] = useState(null)
   const [packages, setPackages] = useState([])
   const [products, setProducts] = useState([])
-  const [amount, setAmount] = useState('')
   const [quantity, setQuantity] = useState(1)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [submitting, setSubmitting] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [changingVisibilityId, setChangingVisibilityId] = useState(null)
   const [editingPackage, setEditingPackage] = useState(null)
+  const [viewingPackage, setViewingPackage] = useState(null)
+  const [newPackageImages, setNewPackageImages] = useState([])
+  const [editingPackageImages, setEditingPackageImages] = useState([])
+  const [cropSource, setCropSource] = useState(null)
+  const [cropTarget, setCropTarget] = useState(null)
+  const [cropQueue, setCropQueue] = useState([])
+  const [cropZoom, setCropZoom] = useState(1)
+  const [cropX, setCropX] = useState(50)
+  const [cropY, setCropY] = useState(50)
   const [deletingPackageId, setDeletingPackageId] = useState(null)
 
   const load = useCallback(async () => {
@@ -52,30 +59,124 @@ export function InvestorDashboard({ view = 'overview' }) {
   }, [load])
 
   useEffect(() => {
-    if (amount && !packages.some((item) => Number(item.id) === Number(amount))) {
-      setAmount('')
-      setQuantity(1)
-    }
-  }, [amount, packages])
-
-  useEffect(() => {
     if (location.state?.paymentNotice) {
       setNotice(location.state.paymentNotice)
       navigate(location.pathname, { replace: true, state: null })
     }
   }, [location.pathname, location.state, navigate])
 
-  function requestInvestment(event) {
-    event.preventDefault()
-    setError('')
-    setNotice('')
-    const selectedPackage = packages.find(
-      (investmentPackage) => Number(investmentPackage.id) === Number(amount),
-    )
-    if (!selectedPackage) return
+  function openOpportunity(investmentPackage) {
+    setViewingPackage(investmentPackage)
+    setQuantity(1)
+  }
+
+  function continueFromOpportunity() {
+    if (
+      !quantity ||
+      quantity < 1 ||
+      quantity > Math.min(viewingPackage.remainingUnits, viewingPackage.maxUnitsPerInvestor)
+    ) {
+      setError('Choose a valid quantity before continuing.')
+      return
+    }
     navigate('/investor/payment', {
-      state: { investmentPackage: selectedPackage, quantity },
+      state: { investmentPackage: viewingPackage, quantity },
     })
+  }
+
+  function showCropItem(item, remainingItems) {
+    setCropSource(item.source)
+    setCropTarget(item.target)
+    setCropQueue(remainingItems)
+    setCropZoom(1)
+    setCropX(50)
+    setCropY(50)
+  }
+
+  async function selectInvestmentImages(event, target) {
+    const selectedFiles = Array.from(event.target.files || [])
+    if (!selectedFiles.length) return
+    const currentCount = target === 'new' ? newPackageImages.length : editingPackageImages.length
+    if (currentCount + selectedFiles.length > 6) {
+      setError('You can add up to 6 images to one investment post.')
+      event.target.value = ''
+      return
+    }
+    if (
+      selectedFiles.some((file) => !['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
+    ) {
+      setError('Choose a PNG, JPEG, or WebP image.')
+      event.target.value = ''
+      return
+    }
+    if (selectedFiles.some((file) => file.size > 900 * 1024)) {
+      setError('Each investment image must be smaller than 900 KB.')
+      event.target.value = ''
+      return
+    }
+    const items = await Promise.all(
+      selectedFiles.map(
+        (file) =>
+          new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve({ source: reader.result, target })
+            reader.readAsDataURL(file)
+          }),
+      ),
+    )
+    showCropItem(items[0], items.slice(1))
+    setError('')
+    event.target.value = ''
+  }
+
+  function closeImageCropper() {
+    setCropSource(null)
+    setCropTarget(null)
+    setCropQueue([])
+  }
+
+  function advanceImageCropper() {
+    if (!cropQueue.length) {
+      closeImageCropper()
+      return
+    }
+    showCropItem(cropQueue[0], cropQueue.slice(1))
+  }
+
+  function applyImageCrop() {
+    const image = new Image()
+    image.onload = () => {
+      const outputWidth = 1200
+      const outputHeight = 675
+      const canvas = document.createElement('canvas')
+      canvas.width = outputWidth
+      canvas.height = outputHeight
+      const context = canvas.getContext('2d')
+      const coverScale = Math.max(outputWidth / image.width, outputHeight / image.height)
+      const scale = coverScale * cropZoom
+      const drawWidth = image.width * scale
+      const drawHeight = image.height * scale
+      const drawX = -(drawWidth - outputWidth) * (cropX / 100)
+      const drawY = -(drawHeight - outputHeight) * (cropY / 100)
+      context.drawImage(image, drawX, drawY, drawWidth, drawHeight)
+      const croppedImage = canvas.toDataURL('image/jpeg', 0.86)
+      if (cropTarget === 'new') setNewPackageImages((images) => [...images, croppedImage])
+      if (cropTarget === 'edit') setEditingPackageImages((images) => [...images, croppedImage])
+      advanceImageCropper()
+    }
+    image.onerror = () => setError('The selected image could not be cropped.')
+    image.src = cropSource
+  }
+
+  function openPackageEditor(investmentPackage) {
+    setEditingPackage(investmentPackage)
+    setEditingPackageImages(
+      investmentPackage.imageDataUrls?.length
+        ? investmentPackage.imageDataUrls
+        : investmentPackage.imageDataUrl
+          ? [investmentPackage.imageDataUrl]
+          : [],
+    )
   }
 
   async function updatePackage(investmentPackage, form) {
@@ -90,8 +191,11 @@ export function InvestorDashboard({ view = 'overview' }) {
           earningMaxPercentage: Number(form.maximum.value),
           durationMonths: Number(form.duration.value),
           totalUnits: Number(form.units.value),
+          maxUnitsPerInvestor: Number(form.maxUnitsPerInvestor.value),
           projectName: form.projectName.value,
           purpose: form.purpose.value,
+          imageDataUrl: editingPackageImages[0] || null,
+          imageDataUrls: editingPackageImages,
           fundingTarget: Number(form.fundingTarget.value),
           productIds: Array.from(form.querySelectorAll('input[name="productIds"]:checked')).map(
             (input) => Number(input.value),
@@ -122,8 +226,11 @@ export function InvestorDashboard({ view = 'overview' }) {
           earningMaxPercentage: Number(form.maximum.value),
           durationMonths: Number(form.duration.value),
           totalUnits: Number(form.units.value),
+          maxUnitsPerInvestor: Number(form.maxUnitsPerInvestor.value),
           projectName: form.projectName.value,
           purpose: form.purpose.value,
+          imageDataUrl: newPackageImages[0] || null,
+          imageDataUrls: newPackageImages,
           fundingTarget: Number(form.fundingTarget.value),
           productIds: Array.from(form.querySelectorAll('input[name="productIds"]:checked')).map(
             (input) => Number(input.value),
@@ -132,6 +239,7 @@ export function InvestorDashboard({ view = 'overview' }) {
         }),
       })
       form.reset()
+      setNewPackageImages([])
       setNotice('Investment opportunity posted successfully.')
       await load()
     } catch (requestError) {
@@ -154,8 +262,11 @@ export function InvestorDashboard({ view = 'overview' }) {
           earningMaxPercentage: investmentPackage.earningMaxPercentage,
           durationMonths: investmentPackage.durationMonths,
           totalUnits: investmentPackage.totalUnits,
+          maxUnitsPerInvestor: investmentPackage.maxUnitsPerInvestor,
           projectName: investmentPackage.projectName,
           purpose: investmentPackage.purpose,
+          imageDataUrl: investmentPackage.imageDataUrl,
+          imageDataUrls: investmentPackage.imageDataUrls || [],
           fundingTarget: investmentPackage.fundingTarget,
           productIds: investmentPackage.productIds || [],
           active: !investmentPackage.active,
@@ -341,11 +452,18 @@ export function InvestorDashboard({ view = 'overview' }) {
                         <i style={{ width: `${progress}%` }} />
                       </div>
                       <div className="cycle-compact-date">
-                        <span>Matures</span><strong>{dateTime(cycle.endsAt).split(',')[0]}</strong>
+                        <span>Matures</span>
+                        <strong>{dateTime(cycle.endsAt).split(',')[0]}</strong>
                       </div>
                       <dl className="cycle-compact-metrics">
-                        <div><dt>Live profit</dt><dd>{money(cycle.investorProfit)}</dd></div>
-                        <div><dt>Current return</dt><dd>{money(cycle.settlementTotal)}</dd></div>
+                        <div>
+                          <dt>Live profit</dt>
+                          <dd>{money(cycle.investorProfit)}</dd>
+                        </div>
+                        <div>
+                          <dt>Current return</dt>
+                          <dd>{money(cycle.settlementTotal)}</dd>
+                        </div>
                       </dl>
                       <Link className="cycle-view-details" to={`/investor/investments/${cycle.id}`}>
                         View investment details →
@@ -414,41 +532,6 @@ export function InvestorDashboard({ view = 'overview' }) {
           {isInvestor && (
             <>
               {view === 'investments' && (
-                <section className="panel investment-request-panel investor-request-card">
-                  <div>
-                    <p className="eyebrow">New investment</p>
-                    <h2>Request to invest</h2>
-                    <p>
-                      {amount
-                        ? `${money(packages.find((item) => Number(item.id) === Number(amount))?.amount)} selected per unit`
-                        : 'Choose an opportunity from the list below.'}
-                    </p>
-                  </div>
-                  {amount && (
-                    <form className="investment-request-form" onSubmit={requestInvestment}>
-                      <label>
-                        Quantity
-                        <input
-                          type="number"
-                          min="1"
-                          max={
-                            packages.find((item) => Number(item.id) === Number(amount))
-                              ?.remainingUnits || 1
-                          }
-                          value={quantity}
-                          onChange={(event) => setQuantity(Number(event.target.value))}
-                          required
-                        />
-                      </label>
-                      <button type="submit" disabled={submitting}>
-                        {submitting ? 'Opening payment…' : 'Continue to payment'}
-                      </button>
-                    </form>
-                  )}
-                </section>
-              )}
-
-              {view === 'investments' && (
                 <section className="investment-opportunities-panel">
                   <div className="panel-title-row">
                     <div>
@@ -457,75 +540,71 @@ export function InvestorDashboard({ view = 'overview' }) {
                     </div>
                     <small>Scroll to view all ↓</small>
                   </div>
-                  <div
-                    className="investment-package-options investment-project-feed"
-                    role="radiogroup"
-                    aria-label="Investment package"
-                  >
+                  <div className="investment-project-feed" aria-label="Investment opportunities">
                     {packages.map((investmentPackage) => {
-                      const minimumProfit =
-                        (Number(investmentPackage.amount) *
-                          Number(investmentPackage.earningMinPercentage)) /
-                        100
-                      const maximumProfit =
-                        (Number(investmentPackage.amount) *
-                          Number(investmentPackage.earningMaxPercentage)) /
-                        100
-                      const funded = Number(investmentPackage.fundedAmount || 0)
-                      const target = Number(investmentPackage.fundingTarget || 0)
-                      const progress = target ? Math.min(100, (funded / target) * 100) : 0
                       return (
-                        <button
-                          type="button"
+                        <article
                           key={investmentPackage.id}
-                          aria-pressed={Number(amount) === Number(investmentPackage.id)}
-                          title="Click to select. Double-click to clear selection."
-                          className={`investment-project-card${Number(amount) === Number(investmentPackage.id) ? ' selected' : ''}`}
-                          onClick={() => {
-                            setAmount(String(investmentPackage.id))
-                            setQuantity(1)
-                          }}
-                          onDoubleClick={() => {
-                            setAmount('')
-                            setQuantity(1)
+                          className="investment-feed-card"
+                          role="button"
+                          tabIndex="0"
+                          aria-label={`View ${investmentPackage.projectName} details`}
+                          onClick={() => openOpportunity(investmentPackage)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              openOpportunity(investmentPackage)
+                            }
                           }}
                         >
-                          <div className="investment-project-card-top">
+                          <div className="investment-feed-image">
+                            {investmentPackage.imageDataUrl ? (
+                              <img
+                                src={investmentPackage.imageDataUrl}
+                                alt={`${investmentPackage.projectName} project`}
+                              />
+                            ) : (
+                              <span>{investmentPackage.projectName.slice(0, 1)}</span>
+                            )}
+                            <small>Live</small>
+                          </div>
+                          <div className="investment-feed-summary">
                             <div>
                               <span className="investment-project-type">Live opportunity</span>
                               <h3>{investmentPackage.projectName}</h3>
+                              <small>Click to view full project details</small>
                             </div>
-                            <span
-                              className={`project-selection-indicator${Number(amount) === Number(investmentPackage.id) ? ' checked' : ''}`}
-                              aria-hidden="true"
+                            <dl>
+                              <div>
+                                <dt>Estimated earnings</dt>
+                                <dd>
+                                  {percent(investmentPackage.earningMinPercentage)}–
+                                  {percent(investmentPackage.earningMaxPercentage)}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Per unit</dt>
+                                <dd>{money(investmentPackage.amount)}</dd>
+                              </div>
+                              <div>
+                                <dt>Duration</dt>
+                                <dd>{investmentPackage.durationMonths} months</dd>
+                              </div>
+                            </dl>
+                            <small className="investment-feed-limit">
+                              Maximum {investmentPackage.maxUnitsPerInvestor} units per investor
+                            </small>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                openOpportunity(investmentPackage)
+                              }}
                             >
-                              {Number(amount) === Number(investmentPackage.id) ? '✓' : ''}
-                            </span>
+                              View details
+                            </button>
                           </div>
-                          <div className="investment-project-description">
-                            <small>About this project</small>
-                            <p>{investmentPackage.purpose}</p>
-                          </div>
-                          <div className="investment-project-products">
-                            <small>Profit-linked products</small>
-                            <strong>{investmentPackage.productNames?.join(', ') || 'Business products specified by owner'}</strong>
-                          </div>
-                          <div className="investment-project-funding">
-                            <div><span>Funded {money(funded)}</span><span>Target {money(target)}</span></div>
-                            <i><b style={{ width: `${progress}%` }} /></i>
-                          </div>
-                          <dl>
-                            <div><dt>Per unit</dt><dd>{money(investmentPackage.amount)}</dd></div>
-                            <div><dt>Estimated profit</dt><dd>{money(minimumProfit)}–{money(maximumProfit)}</dd><small>{percent(investmentPackage.earningMinPercentage)}–{percent(investmentPackage.earningMaxPercentage)}</small></div>
-                            <div><dt>Total at maturity</dt><dd>{money(Number(investmentPackage.amount) + minimumProfit)}–{money(Number(investmentPackage.amount) + maximumProfit)}</dd></div>
-                            <div><dt>Project duration</dt><dd>{investmentPackage.durationMonths} months</dd></div>
-                            <div><dt>Units remaining</dt><dd>{investmentPackage.remainingUnits} of {investmentPackage.totalUnits}</dd></div>
-                          </dl>
-                          <div className="investment-project-card-footer">
-                            <span>Profit tracking starts after owner approval</span>
-                            <strong>{Number(amount) === Number(investmentPackage.id) ? 'Selected ✓' : 'Select investment'}</strong>
-                          </div>
-                        </button>
+                        </article>
                       )
                     })}
                     {!packages.length && (
@@ -535,6 +614,236 @@ export function InvestorDashboard({ view = 'overview' }) {
                     )}
                   </div>
                 </section>
+              )}
+
+              {viewingPackage && (
+                <div
+                  className="investment-opportunity-modal-backdrop"
+                  role="presentation"
+                  onMouseDown={(event) => {
+                    if (event.target === event.currentTarget) setViewingPackage(null)
+                  }}
+                >
+                  <section
+                    className="investment-opportunity-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="opportunity-detail-title"
+                  >
+                    {(viewingPackage.imageDataUrls?.length || viewingPackage.imageDataUrl) && (
+                      <div className="investment-opportunity-gallery">
+                        {(viewingPackage.imageDataUrls?.length
+                          ? viewingPackage.imageDataUrls
+                          : [viewingPackage.imageDataUrl]
+                        ).map((image, index) => (
+                          <figure key={`${image.slice(-24)}-${index}`}>
+                            <img
+                              className="investment-opportunity-hero"
+                              src={image}
+                              alt={`${viewingPackage.projectName} project ${index + 1}`}
+                            />
+                            <span>
+                              {index + 1} / {viewingPackage.imageDataUrls?.length || 1}
+                            </span>
+                          </figure>
+                        ))}
+                      </div>
+                    )}
+                    <div className="investment-opportunity-content">
+                      <div className="investment-opportunity-heading">
+                        <div>
+                          <span className="investment-project-type">Live opportunity</span>
+                          <h2 id="opportunity-detail-title">{viewingPackage.projectName}</h2>
+                        </div>
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => setViewingPackage(null)}
+                        >
+                          Close
+                        </button>
+                      </div>
+                      <p className="investment-opportunity-description">{viewingPackage.purpose}</p>
+                      <div className="investment-project-products">
+                        <small>Profit-linked products</small>
+                        <strong>
+                          {viewingPackage.productNames?.join(', ') ||
+                            'Business products specified by owner'}
+                        </strong>
+                      </div>
+                      <dl className="investment-opportunity-facts">
+                        {(() => {
+                          const minimumProfit =
+                            (Number(viewingPackage.amount) *
+                              Number(viewingPackage.earningMinPercentage)) /
+                            100
+                          const maximumProfit =
+                            (Number(viewingPackage.amount) *
+                              Number(viewingPackage.earningMaxPercentage)) /
+                            100
+                          return (
+                            <>
+                              <div>
+                                <dt>Investment per unit</dt>
+                                <dd>{money(viewingPackage.amount)}</dd>
+                              </div>
+                              <div>
+                                <dt>Estimated earnings</dt>
+                                <dd>
+                                  {percent(viewingPackage.earningMinPercentage)}–
+                                  {percent(viewingPackage.earningMaxPercentage)}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Estimated profit</dt>
+                                <dd>
+                                  {money(minimumProfit)}–{money(maximumProfit)}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Total at maturity</dt>
+                                <dd>
+                                  {money(Number(viewingPackage.amount) + minimumProfit)}–
+                                  {money(Number(viewingPackage.amount) + maximumProfit)}
+                                </dd>
+                              </div>
+                            </>
+                          )
+                        })()}
+                        <div>
+                          <dt>Project duration</dt>
+                          <dd>{viewingPackage.durationMonths} months</dd>
+                        </div>
+                        <div>
+                          <dt>Units available</dt>
+                          <dd>
+                            {viewingPackage.remainingUnits} of {viewingPackage.totalUnits}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Investor purchase limit</dt>
+                          <dd>{viewingPackage.maxUnitsPerInvestor} units maximum</dd>
+                        </div>
+                        <div>
+                          <dt>Funding target</dt>
+                          <dd>{money(viewingPackage.fundingTarget)}</dd>
+                        </div>
+                        <div>
+                          <dt>Already funded</dt>
+                          <dd>{money(viewingPackage.fundedAmount)}</dd>
+                        </div>
+                      </dl>
+                      <section className="investment-distribution-summary">
+                        <div>
+                          <p className="eyebrow">Profit distribution</p>
+                          <h3>How you receive your return</h3>
+                        </div>
+                        <ol>
+                          <li>
+                            <span>1</span>
+                            <p>
+                              Tracking starts after owner approval and uses verified sales from{' '}
+                              <strong>
+                                {viewingPackage.productNames?.join(', ') || 'the linked products'}
+                              </strong>
+                              .
+                            </p>
+                          </li>
+                          <li>
+                            <span>2</span>
+                            <p>
+                              Direct product costs and a 5% business reserve are deducted before
+                              profit is shared.
+                            </p>
+                          </li>
+                          <li>
+                            <span>3</span>
+                            <p>
+                              Verified profit is divided by project units. Your earnings stop at the
+                              post’s maximum offered return.
+                            </p>
+                          </li>
+                          <li>
+                            <span>4</span>
+                            <p>
+                              Principal and final verified profit become withdrawable together after{' '}
+                              {viewingPackage.durationMonths} months.
+                            </p>
+                          </li>
+                        </ol>
+                        <div className="investment-return-example">
+                          <span>Example for 1 unit</span>
+                          <strong>
+                            {money(viewingPackage.amount)} +{' '}
+                            {money(
+                              (Number(viewingPackage.amount) *
+                                Number(viewingPackage.earningMinPercentage)) /
+                                100,
+                            )}
+                            –
+                            {money(
+                              (Number(viewingPackage.amount) *
+                                Number(viewingPackage.earningMaxPercentage)) /
+                                100,
+                            )}{' '}
+                            estimated profit
+                          </strong>
+                          <small>
+                            Estimated maturity total:{' '}
+                            {money(
+                              Number(viewingPackage.amount) +
+                                (Number(viewingPackage.amount) *
+                                  Number(viewingPackage.earningMinPercentage)) /
+                                  100,
+                            )}
+                            –
+                            {money(
+                              Number(viewingPackage.amount) +
+                                (Number(viewingPackage.amount) *
+                                  Number(viewingPackage.earningMaxPercentage)) /
+                                  100,
+                            )}
+                            . Actual profit depends on verified performance.
+                          </small>
+                        </div>
+                      </section>
+                      <div className="investment-opportunity-action">
+                        <label>
+                          Quantity
+                          <input
+                            type="number"
+                            min="1"
+                            max={Math.min(
+                              viewingPackage.remainingUnits,
+                              viewingPackage.maxUnitsPerInvestor,
+                            )}
+                            value={quantity}
+                            onChange={(event) => setQuantity(Number(event.target.value))}
+                          />
+                        </label>
+                        <div>
+                          <small>Total investment</small>
+                          <strong>{money(Number(viewingPackage.amount) * quantity)}</strong>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={
+                            !quantity ||
+                            quantity < 1 ||
+                            quantity >
+                              Math.min(
+                                viewingPackage.remainingUnits,
+                                viewingPackage.maxUnitsPerInvestor,
+                              )
+                          }
+                          onClick={continueFromOpportunity}
+                        >
+                          Continue to payment
+                        </button>
+                      </div>
+                    </div>
+                  </section>
+                </div>
               )}
 
               {view === 'history' && (
@@ -602,30 +911,130 @@ export function InvestorDashboard({ view = 'overview' }) {
               <form className="investment-post-composer" onSubmit={publishPackage}>
                 <label className="investment-post-wide">
                   Project name
-                  <input name="projectName" maxLength="140" placeholder="Example: New pizza oven" required />
+                  <input
+                    name="projectName"
+                    maxLength="140"
+                    placeholder="Example: New pizza oven"
+                    required
+                  />
                 </label>
                 <label className="investment-post-wide">
                   What will this investment fund?
-                  <textarea name="purpose" maxLength="500" rows="3" placeholder="Explain how the money will be used." required />
+                  <textarea
+                    name="purpose"
+                    maxLength="500"
+                    rows="3"
+                    placeholder="Explain how the money will be used."
+                    required
+                  />
                 </label>
-                <label>Investment per unit (৳)<input name="amount" type="number" inputMode="decimal" step="any" placeholder="Enter any amount" required /></label>
-                <label>Funding target (৳)<input name="fundingTarget" type="number" inputMode="decimal" step="any" placeholder="Enter any amount" required /></label>
-                <label>Minimum earnings (%)<input name="minimum" type="number" min="0" max="100" step="0.01" required /></label>
-                <label>Maximum earnings (%)<input name="maximum" type="number" min="0" max="100" step="0.01" required /></label>
-                <label>Duration (months)<input name="duration" type="number" min="1" max="60" required /></label>
-                <label>Total investment units<input name="units" type="number" min="1" required /></label>
+                <div className="investment-image-uploader investment-post-wide">
+                  <div className="investment-image-gallery-preview">
+                    {newPackageImages.map((image, index) => (
+                      <figure key={`${image.slice(-24)}-${index}`}>
+                        <img src={image} alt={`New investment image ${index + 1}`} />
+                        {index === 0 && <span>Cover</span>}
+                        <button
+                          type="button"
+                          aria-label={`Remove image ${index + 1}`}
+                          onClick={() =>
+                            setNewPackageImages((images) =>
+                              images.filter((_, imageIndex) => imageIndex !== index),
+                            )
+                          }
+                        >
+                          ×
+                        </button>
+                      </figure>
+                    ))}
+                    {!newPackageImages.length && <span>No project images selected</span>}
+                  </div>
+                  <div>
+                    <strong>Add project images</strong>
+                    <small>Up to 6 images. The first image becomes the cover.</small>
+                    <label className="button-like">
+                      Choose images
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/png,image/jpeg,image/webp"
+                        onChange={(event) => selectInvestmentImages(event, 'new')}
+                      />
+                    </label>
+                    {newPackageImages.length > 0 && (
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => setNewPackageImages([])}
+                      >
+                        Remove all
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <label>
+                  Investment per unit (৳)
+                  <input
+                    name="amount"
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    placeholder="Enter any amount"
+                    required
+                  />
+                </label>
+                <label>
+                  Funding target (৳)
+                  <input
+                    name="fundingTarget"
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    placeholder="Enter any amount"
+                    required
+                  />
+                </label>
+                <label>
+                  Minimum earnings (%)
+                  <input name="minimum" type="number" min="0" max="100" step="0.01" required />
+                </label>
+                <label>
+                  Maximum earnings (%)
+                  <input name="maximum" type="number" min="0" max="100" step="0.01" required />
+                </label>
+                <label>
+                  Duration (months)
+                  <input name="duration" type="number" min="1" max="60" required />
+                </label>
+                <label>
+                  Total investment units
+                  <input name="units" type="number" min="1" required />
+                </label>
+                <label>
+                  Maximum units per investor
+                  <input name="maxUnitsPerInvestor" type="number" min="1" required />
+                  <small>One investor cannot request more than this total.</small>
+                </label>
                 <details className="product-multiselect investment-post-wide">
-                  <summary>Products connected to this project <span>Select products</span></summary>
+                  <summary>
+                    Products connected to this project <span>Select products</span>
+                  </summary>
                   <div>
                     {products.map((product) => (
-                      <label key={product.id}><input name="productIds" type="checkbox" value={product.id} />{product.name}</label>
+                      <label key={product.id}>
+                        <input name="productIds" type="checkbox" value={product.id} />
+                        {product.name}
+                      </label>
                     ))}
                     {!products.length && <small>Add products in Point of sale first.</small>}
                   </div>
                 </details>
                 <label className="investment-post-visibility investment-post-wide">
                   <input name="active" type="checkbox" defaultChecked />
-                  <span><strong>Publish as active</strong><small>Investors can see and select this opportunity immediately.</small></span>
+                  <span>
+                    <strong>Publish as active</strong>
+                    <small>Investors can see and select this opportunity immediately.</small>
+                  </span>
                 </label>
                 <button className="investment-post-wide" type="submit" disabled={publishing}>
                   {publishing ? 'Publishing…' : 'Post investment opportunity'}
@@ -634,7 +1043,10 @@ export function InvestorDashboard({ view = 'overview' }) {
 
               <div className="owner-investment-posts">
                 <div className="owner-section-heading">
-                  <div><p className="eyebrow">Published posts</p><h3>Your investment opportunities</h3></div>
+                  <div>
+                    <p className="eyebrow">Published posts</p>
+                    <h3>Your investment opportunities</h3>
+                  </div>
                   <span>{packages.length} posts</span>
                 </div>
                 {packages.map((investmentPackage) => (
@@ -644,30 +1056,71 @@ export function InvestorDashboard({ view = 'overview' }) {
                     role="button"
                     tabIndex="0"
                     aria-label={`Edit ${investmentPackage.projectName}`}
-                    onClick={() => setEditingPackage(investmentPackage)}
+                    onClick={() => openPackageEditor(investmentPackage)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault()
-                        setEditingPackage(investmentPackage)
+                        openPackageEditor(investmentPackage)
                       }
                     }}
                   >
-                    <div>
-                      <span className={`investment-visibility-badge ${investmentPackage.active ? 'active' : 'inactive'}`}>
+                    <div className="owner-investment-post-image">
+                      {investmentPackage.imageDataUrl ? (
+                        <img
+                          src={investmentPackage.imageDataUrl}
+                          alt={`${investmentPackage.projectName} project`}
+                        />
+                      ) : (
+                        <span>{investmentPackage.projectName.slice(0, 1)}</span>
+                      )}
+                    </div>
+                    <div className="owner-investment-post-copy">
+                      <span
+                        className={`investment-visibility-badge ${investmentPackage.active ? 'active' : 'inactive'}`}
+                      >
                         {investmentPackage.active ? 'Active' : 'Inactive'}
                       </span>
                       <h3>{investmentPackage.projectName}</h3>
                       <p>{investmentPackage.purpose}</p>
+                      <small>Click to view and edit full details</small>
                     </div>
                     <dl>
-                      <div><dt>Per unit</dt><dd>{money(investmentPackage.amount)}</dd></div>
-                      <div><dt>Expected earnings</dt><dd>{percent(investmentPackage.earningMinPercentage)}–{percent(investmentPackage.earningMaxPercentage)}</dd></div>
-                      <div><dt>Duration</dt><dd>{investmentPackage.durationMonths} months</dd></div>
-                      <div><dt>Available</dt><dd>{investmentPackage.remainingUnits} units</dd></div>
+                      <div>
+                        <dt>Per unit</dt>
+                        <dd>{money(investmentPackage.amount)}</dd>
+                      </div>
+                      <div>
+                        <dt>Expected earnings</dt>
+                        <dd>
+                          {percent(investmentPackage.earningMinPercentage)}–
+                          {percent(investmentPackage.earningMaxPercentage)}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Duration</dt>
+                        <dd>{investmentPackage.durationMonths} months</dd>
+                      </div>
+                      <div>
+                        <dt>Available</dt>
+                        <dd>{investmentPackage.remainingUnits} units</dd>
+                      </div>
+                      <div>
+                        <dt>Per-investor limit</dt>
+                        <dd>{investmentPackage.maxUnitsPerInvestor} units</dd>
+                      </div>
                     </dl>
-                    <div className="owner-investment-post-actions" onClick={(event) => event.stopPropagation()}>
+                    <div
+                      className="owner-investment-post-actions"
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <label className="investment-visibility-switch">
-                        <span>{changingVisibilityId === investmentPackage.id ? 'Updating…' : investmentPackage.active ? 'Active' : 'Inactive'}</span>
+                        <span>
+                          {changingVisibilityId === investmentPackage.id
+                            ? 'Updating…'
+                            : investmentPackage.active
+                              ? 'Active'
+                              : 'Inactive'}
+                        </span>
                         <input
                           type="checkbox"
                           checked={investmentPackage.active}
@@ -688,7 +1141,9 @@ export function InvestorDashboard({ view = 'overview' }) {
                     </div>
                   </article>
                 ))}
-                {!packages.length && <p className="empty-state">Your published opportunities will appear here.</p>}
+                {!packages.length && (
+                  <p className="empty-state">Your published opportunities will appear here.</p>
+                )}
               </div>
               {editingPackage && (
                 <div
@@ -698,13 +1153,24 @@ export function InvestorDashboard({ view = 'overview' }) {
                     if (event.target === event.currentTarget) setEditingPackage(null)
                   }}
                 >
-                  <section className="investment-edit-modal" role="dialog" aria-modal="true" aria-labelledby="investment-edit-title">
+                  <section
+                    className="investment-edit-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="investment-edit-title"
+                  >
                     <div className="panel-title-row">
                       <div>
                         <p className="eyebrow">Edit investment post</p>
                         <h2 id="investment-edit-title">Correct opportunity details</h2>
                       </div>
-                      <button type="button" className="secondary" onClick={() => setEditingPackage(null)}>Close</button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => setEditingPackage(null)}
+                      >
+                        Close
+                      </button>
                     </div>
                     <form
                       className="investment-post-composer"
@@ -713,25 +1179,175 @@ export function InvestorDashboard({ view = 'overview' }) {
                         updatePackage(editingPackage, event.currentTarget)
                       }}
                     >
-                      <label className="investment-post-wide">Project name<input name="projectName" maxLength="140" defaultValue={editingPackage.projectName} required /></label>
-                      <label className="investment-post-wide">Funding purpose<textarea name="purpose" maxLength="500" rows="3" defaultValue={editingPackage.purpose} required /></label>
-                      <label>Investment per unit (৳)<input name="amount" type="number" inputMode="decimal" step="any" defaultValue={Number(editingPackage.amount)} required /></label>
-                      <label>Funding target (৳)<input name="fundingTarget" type="number" inputMode="decimal" step="any" defaultValue={Number(editingPackage.fundingTarget)} required /></label>
-                      <label>Minimum earnings (%)<input name="minimum" type="number" min="0" max="100" step="0.01" defaultValue={Number(editingPackage.earningMinPercentage)} required /></label>
-                      <label>Maximum earnings (%)<input name="maximum" type="number" min="0" max="100" step="0.01" defaultValue={Number(editingPackage.earningMaxPercentage)} required /></label>
-                      <label>Duration (months)<input name="duration" type="number" min="1" max="60" defaultValue={editingPackage.durationMonths} required /></label>
-                      <label>Total units<input name="units" type="number" min={editingPackage.totalUnits - editingPackage.remainingUnits || 1} defaultValue={editingPackage.totalUnits} required /></label>
+                      <label className="investment-post-wide">
+                        Project name
+                        <input
+                          name="projectName"
+                          maxLength="140"
+                          defaultValue={editingPackage.projectName}
+                          required
+                        />
+                      </label>
+                      <label className="investment-post-wide">
+                        Funding purpose
+                        <textarea
+                          name="purpose"
+                          maxLength="500"
+                          rows="3"
+                          defaultValue={editingPackage.purpose}
+                          required
+                        />
+                      </label>
+                      <div className="investment-image-uploader investment-post-wide">
+                        <div className="investment-image-gallery-preview">
+                          {editingPackageImages.map((image, index) => (
+                            <figure key={`${image.slice(-24)}-${index}`}>
+                              <img src={image} alt={`Investment image ${index + 1}`} />
+                              {index === 0 && <span>Cover</span>}
+                              <button
+                                type="button"
+                                aria-label={`Remove image ${index + 1}`}
+                                onClick={() =>
+                                  setEditingPackageImages((images) =>
+                                    images.filter((_, imageIndex) => imageIndex !== index),
+                                  )
+                                }
+                              >
+                                ×
+                              </button>
+                            </figure>
+                          ))}
+                          {!editingPackageImages.length && <span>No project images selected</span>}
+                        </div>
+                        <div>
+                          <strong>Project images</strong>
+                          <small>Up to 6 images. The first image becomes the cover.</small>
+                          <label className="button-like">
+                            Add images
+                            <input
+                              type="file"
+                              multiple
+                              accept="image/png,image/jpeg,image/webp"
+                              onChange={(event) => selectInvestmentImages(event, 'edit')}
+                            />
+                          </label>
+                          {editingPackageImages.length > 0 && (
+                            <button
+                              type="button"
+                              className="secondary"
+                              onClick={() => setEditingPackageImages([])}
+                            >
+                              Remove all
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <label>
+                        Investment per unit (৳)
+                        <input
+                          name="amount"
+                          type="number"
+                          inputMode="decimal"
+                          step="any"
+                          defaultValue={Number(editingPackage.amount)}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Funding target (৳)
+                        <input
+                          name="fundingTarget"
+                          type="number"
+                          inputMode="decimal"
+                          step="any"
+                          defaultValue={Number(editingPackage.fundingTarget)}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Minimum earnings (%)
+                        <input
+                          name="minimum"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          defaultValue={Number(editingPackage.earningMinPercentage)}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Maximum earnings (%)
+                        <input
+                          name="maximum"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          defaultValue={Number(editingPackage.earningMaxPercentage)}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Duration (months)
+                        <input
+                          name="duration"
+                          type="number"
+                          min="1"
+                          max="60"
+                          defaultValue={editingPackage.durationMonths}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Total units
+                        <input
+                          name="units"
+                          type="number"
+                          min={editingPackage.totalUnits - editingPackage.remainingUnits || 1}
+                          defaultValue={editingPackage.totalUnits}
+                          required
+                        />
+                      </label>
+                      <label>
+                        Maximum units per investor
+                        <input
+                          name="maxUnitsPerInvestor"
+                          type="number"
+                          min="1"
+                          max={editingPackage.totalUnits}
+                          defaultValue={editingPackage.maxUnitsPerInvestor}
+                          required
+                        />
+                        <small>Existing investor commitments cannot exceed the new limit.</small>
+                      </label>
                       <details className="product-multiselect investment-post-wide">
-                        <summary>Products connected to this project <span>Select products</span></summary>
+                        <summary>
+                          Products connected to this project <span>Select products</span>
+                        </summary>
                         <div>
                           {products.map((product) => (
-                            <label key={product.id}><input name="productIds" type="checkbox" value={product.id} defaultChecked={editingPackage.productIds?.includes(product.id)} />{product.name}</label>
+                            <label key={product.id}>
+                              <input
+                                name="productIds"
+                                type="checkbox"
+                                value={product.id}
+                                defaultChecked={editingPackage.productIds?.includes(product.id)}
+                              />
+                              {product.name}
+                            </label>
                           ))}
                           {!products.length && <small>Add products in Point of sale first.</small>}
                         </div>
                       </details>
                       <div className="investment-edit-actions investment-post-wide">
-                        <button type="button" className="secondary" onClick={() => setEditingPackage(null)}>Cancel</button>
+                        <button
+                          type="button"
+                          className="secondary"
+                          onClick={() => setEditingPackage(null)}
+                        >
+                          Cancel
+                        </button>
                         <button type="submit">Save changes</button>
                       </div>
                     </form>
@@ -741,6 +1357,80 @@ export function InvestorDashboard({ view = 'overview' }) {
             </section>
           )}
         </>
+      )}
+      {cropSource && (
+        <div className="investment-cropper-backdrop" role="presentation">
+          <section
+            className="investment-cropper"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="investment-cropper-title"
+          >
+            <div className="investment-cropper-heading">
+              <div>
+                <p className="eyebrow">Adjust project image</p>
+                <h2 id="investment-cropper-title">Crop your cover</h2>
+                <small>{cropQueue.length + 1} selected image(s) remaining</small>
+              </div>
+              <button type="button" className="secondary" onClick={closeImageCropper}>
+                Cancel
+              </button>
+            </div>
+            <div className="investment-crop-frame">
+              <img
+                src={cropSource}
+                alt="Crop preview"
+                style={{
+                  objectPosition: `${cropX}% ${cropY}%`,
+                  transform: `scale(${cropZoom})`,
+                  transformOrigin: `${cropX}% ${cropY}%`,
+                }}
+              />
+              <span>Investment cover preview</span>
+            </div>
+            <div className="investment-crop-controls">
+              <label>
+                Zoom
+                <input
+                  type="range"
+                  min="1"
+                  max="2.5"
+                  step="0.05"
+                  value={cropZoom}
+                  onChange={(event) => setCropZoom(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                Horizontal position
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={cropX}
+                  onChange={(event) => setCropX(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                Vertical position
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={cropY}
+                  onChange={(event) => setCropY(Number(event.target.value))}
+                />
+              </label>
+            </div>
+            <div className="investment-crop-actions">
+              <button type="button" className="secondary" onClick={advanceImageCropper}>
+                Skip this image
+              </button>
+              <button type="button" onClick={applyImageCrop}>
+                Apply crop
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   )

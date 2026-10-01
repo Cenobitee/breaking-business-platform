@@ -69,6 +69,13 @@ public class InvestmentService {
             .findForUpdateById(packageId)
             .filter(item -> item.isActive() && sameBusiness(item.getBusiness(), investor.getBusiness()))
             .orElseThrow(() -> new IllegalArgumentException("Investment offer not found"));
+    long alreadyRequested = requests.sumQuantityByInvestorAndPackage(investor, investmentPackage);
+    if (alreadyRequested + quantity > investmentPackage.getMaxUnitsPerInvestor()) {
+      throw new IllegalArgumentException(
+          "You can invest in a maximum of "
+              + investmentPackage.getMaxUnitsPerInvestor()
+              + " units for this project");
+    }
     investmentPackage.commitUnits(quantity);
     packages.save(investmentPackage);
     return InvestmentRequestResponse.from(
@@ -99,7 +106,10 @@ public class InvestmentService {
         amount,
         request.earningMinPercentage().setScale(2, RoundingMode.HALF_UP),
         request.earningMaxPercentage().setScale(2, RoundingMode.HALF_UP),
-        request.durationMonths(), request.totalUnits(), request.projectName(), request.purpose(),
+        request.durationMonths(), request.totalUnits(), request.maxUnitsPerInvestor(),
+        request.projectName(), request.purpose(),
+        request.imageDataUrl(),
+        request.imageDataUrls(),
         request.fundingTarget().setScale(2, RoundingMode.HALF_UP),
         linkedProducts(request.productIds(), owner));
     investmentPackage.setActive(request.active());
@@ -117,14 +127,30 @@ public class InvestmentService {
     BigDecimal minimum = update.earningMinPercentage().setScale(2, RoundingMode.HALF_UP);
     BigDecimal maximum = update.earningMaxPercentage().setScale(2, RoundingMode.HALF_UP);
     var linkedProducts = linkedProducts(update.productIds(), owner);
+    int highestExistingInvestorUnits =
+        requests.findByInvestmentPackage(investmentPackage).stream()
+            .collect(Collectors.groupingBy(request -> request.getInvestor().getId(), Collectors.summingInt(InvestmentRequest::getQuantity)))
+            .values().stream()
+            .mapToInt(Integer::intValue)
+            .max()
+            .orElse(0);
+    if (update.maxUnitsPerInvestor() < highestExistingInvestorUnits) {
+      throw new IllegalArgumentException(
+          "Investor unit limit cannot be lower than an investor's existing "
+              + highestExistingInvestorUnits
+              + " units");
+    }
     investmentPackage.updateOffer(
         update.amount().setScale(2, RoundingMode.HALF_UP),
         minimum,
         maximum,
         update.durationMonths(),
         update.totalUnits(),
+        update.maxUnitsPerInvestor(),
         update.projectName(),
         update.purpose(),
+        update.imageDataUrl(),
+        update.imageDataUrls(),
         update.fundingTarget().setScale(2, RoundingMode.HALF_UP),
         linkedProducts);
     investmentPackage.setActive(update.active());

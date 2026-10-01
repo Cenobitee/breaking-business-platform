@@ -15,6 +15,14 @@ import org.springframework.data.repository.query.Param;
 
 public interface InvestmentRequestRepository extends JpaRepository<InvestmentRequest, Long> {
   boolean existsByInvestmentPackage(InvestmentPackage investmentPackage);
+  List<InvestmentRequest> findByInvestmentPackage(InvestmentPackage investmentPackage);
+
+  @Query(
+      "select coalesce(sum(r.quantity), 0) from InvestmentRequest r where r.investor = :investor"
+          + " and r.investmentPackage = :investmentPackage")
+  long sumQuantityByInvestorAndPackage(
+      @Param("investor") AppUser investor,
+      @Param("investmentPackage") InvestmentPackage investmentPackage);
   List<InvestmentRequest> findByInvestorOrderByRequestedAtDesc(AppUser investor);
 
   List<InvestmentRequest> findByStatusOrderByRequestedAtAsc(InvestmentRequestStatus status);

@@ -3,6 +3,8 @@ package com.financialplatform.domain;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -31,6 +33,9 @@ public class InvestmentPackage {
   @Column(name = "total_units", nullable = false)
   private int totalUnits;
 
+  @Column(name = "max_units_per_investor", nullable = false)
+  private int maxUnitsPerInvestor;
+
   @Column(name = "committed_units", nullable = false)
   private int committedUnits;
 
@@ -39,6 +44,17 @@ public class InvestmentPackage {
 
   @Column(nullable = false, length = 500)
   private String purpose;
+
+  @Column(name = "image_data_url", columnDefinition = "text")
+  private String imageDataUrl;
+
+  @ElementCollection
+  @CollectionTable(
+      name = "investment_package_images",
+      joinColumns = @JoinColumn(name = "package_id"))
+  @OrderColumn(name = "display_order")
+  @Column(name = "image_data_url", nullable = false, columnDefinition = "text")
+  private List<String> imageDataUrls = new ArrayList<>();
 
   @Column(name = "funding_target", nullable = false, precision = 16, scale = 2)
   private BigDecimal fundingTarget;
@@ -62,6 +78,7 @@ public class InvestmentPackage {
     this.earningMaxPercentage = profitPercentage.add(new BigDecimal("3.00"));
     this.durationMonths = 6;
     this.totalUnits = 100;
+    this.maxUnitsPerInvestor = 100;
     this.projectName = "Business growth project";
     this.purpose = "Fund a specific business asset or expansion.";
     this.fundingTarget = amount.multiply(BigDecimal.valueOf(totalUnits));
@@ -74,10 +91,17 @@ public class InvestmentPackage {
   public BigDecimal getEarningMaxPercentage() { return earningMaxPercentage; }
   public int getDurationMonths() { return durationMonths; }
   public int getTotalUnits() { return totalUnits; }
+  public int getMaxUnitsPerInvestor() { return maxUnitsPerInvestor; }
   public int getCommittedUnits() { return committedUnits; }
   public int getRemainingUnits() { return totalUnits - committedUnits; }
   public String getProjectName() { return projectName; }
   public String getPurpose() { return purpose; }
+  public String getImageDataUrl() { return imageDataUrl; }
+  public List<String> getImageDataUrls() {
+    return imageDataUrls.isEmpty() && imageDataUrl != null
+        ? List.of(imageDataUrl)
+        : List.copyOf(imageDataUrls);
+  }
   public BigDecimal getFundingTarget() { return fundingTarget; }
   public Set<CatalogProduct> getLinkedProducts() { return Set.copyOf(linkedProducts); }
   public boolean isActive() { return active; }
@@ -89,8 +113,11 @@ public class InvestmentPackage {
       BigDecimal maximum,
       int durationMonths,
       int totalUnits,
+      int maxUnitsPerInvestor,
       String projectName,
       String purpose,
+      String imageDataUrl,
+      List<String> imageDataUrls,
       BigDecimal fundingTarget,
       Set<CatalogProduct> linkedProducts) {
     if (maximum.compareTo(minimum) < 0) {
@@ -98,6 +125,9 @@ public class InvestmentPackage {
     }
     if (totalUnits < committedUnits) {
       throw new IllegalArgumentException("Total units cannot be lower than already committed units");
+    }
+    if (maxUnitsPerInvestor < 1 || maxUnitsPerInvestor > totalUnits) {
+      throw new IllegalArgumentException("Investor unit limit must be between 1 and total units");
     }
     if (committedUnits > 0 && this.amount.compareTo(amount) != 0) {
       throw new IllegalArgumentException("Unit price cannot change after an investor reserves units");
@@ -107,8 +137,17 @@ public class InvestmentPackage {
     this.earningMaxPercentage = maximum;
     this.durationMonths = durationMonths;
     this.totalUnits = totalUnits;
+    this.maxUnitsPerInvestor = maxUnitsPerInvestor;
     this.projectName = projectName.trim();
     this.purpose = purpose.trim();
+    this.imageDataUrl =
+        imageDataUrl == null || imageDataUrl.isBlank() ? null : imageDataUrl.trim();
+    this.imageDataUrls.clear();
+    if (imageDataUrls != null) {
+      this.imageDataUrls.addAll(
+          imageDataUrls.stream().filter(value -> value != null && !value.isBlank()).toList());
+    }
+    if (!this.imageDataUrls.isEmpty()) this.imageDataUrl = this.imageDataUrls.getFirst();
     this.fundingTarget = fundingTarget;
     this.linkedProducts.clear();
     this.linkedProducts.addAll(linkedProducts);

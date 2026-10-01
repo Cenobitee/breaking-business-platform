@@ -12,8 +12,11 @@ public record InvestmentPackageResponse(
     int durationMonths,
     int totalUnits,
     int remainingUnits,
+    int maxUnitsPerInvestor,
     String projectName,
     String purpose,
+    String imageDataUrl,
+    List<String> imageDataUrls,
     BigDecimal fundingTarget,
     BigDecimal fundedAmount,
     List<Long> productIds,
@@ -28,8 +31,11 @@ public record InvestmentPackageResponse(
         investmentPackage.getDurationMonths(),
         investmentPackage.getTotalUnits(),
         investmentPackage.getRemainingUnits(),
+        investmentPackage.getMaxUnitsPerInvestor(),
         investmentPackage.getProjectName(),
         investmentPackage.getPurpose(),
+        investmentPackage.getImageDataUrl(),
+        investmentPackage.getImageDataUrls(),
         investmentPackage.getFundingTarget(),
         investmentPackage
             .getAmount()
