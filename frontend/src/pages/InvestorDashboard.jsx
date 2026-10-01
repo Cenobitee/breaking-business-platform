@@ -1015,7 +1015,7 @@ export function InvestorDashboard({ view = 'overview' }) {
                   <input name="maxUnitsPerInvestor" type="number" min="1" required />
                   <small>One investor cannot request more than this total.</small>
                 </label>
-                <details className="product-multiselect investment-post-wide">
+                <details className="product-multiselect">
                   <summary>
                     Products connected to this project <span>Select products</span>
                   </summary>
@@ -1321,7 +1321,7 @@ export function InvestorDashboard({ view = 'overview' }) {
                         />
                         <small>Existing investor commitments cannot exceed the new limit.</small>
                       </label>
-                      <details className="product-multiselect investment-post-wide">
+                      <details className="product-multiselect">
                         <summary>
                           Products connected to this project <span>Select products</span>
                         </summary>
