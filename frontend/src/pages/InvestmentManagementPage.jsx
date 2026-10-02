@@ -195,7 +195,9 @@ export function InvestmentManagementPage() {
                 <th>Period</th>
                 <th>Principal</th>
                 <th>Unit share</th>
-                <th>Sales − costs</th>
+                <th>Actual product profit</th>
+                <th>Owner share (50%)</th>
+                <th>Investor pool (50%)</th>
                 <th>Investor profit</th>
                 <th>Settlement</th>
                 <th>Action</th>
@@ -215,12 +217,27 @@ export function InvestmentManagementPage() {
                     </td>
                     <td>{money(cycle.principal)}</td>
                     <td>{Number(cycle.capitalSharePercentage).toFixed(2)}%</td>
+                    <td>
+                      {money(
+                        Math.max(0, Number(cycle.eligibleRevenue) - Number(cycle.eligibleExpenses)),
+                      )}
+                    </td>
+                    <td>
+                      {money(
+                        Math.max(
+                          0,
+                          Number(cycle.eligibleRevenue) - Number(cycle.eligibleExpenses),
+                        ) - Number(cycle.distributableProfit),
+                      )}
+                    </td>
                     <td>{money(cycle.distributableProfit)}</td>
                     <td>{money(cycle.investorProfit)}</td>
                     <td>{money(cycle.settlementTotal)}</td>
                     <td>
                       {cycle.status !== 'ACTIVE' ? (
-                        <span className="role-label status-completed">{cycle.status === 'WITHDRAWN' ? 'Withdrawn' : 'Ready'}</span>
+                        <span className="role-label status-completed">
+                          {cycle.status === 'WITHDRAWN' ? 'Withdrawn' : 'Ready'}
+                        </span>
                       ) : (
                         <button
                           type="button"

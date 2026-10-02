@@ -782,15 +782,16 @@ export function InvestorDashboard({ view = 'overview' }) {
                           <li>
                             <span>2</span>
                             <p>
-                              Direct product costs and a 5% business reserve are deducted before
-                              profit is shared.
+                              Direct product costs are deducted from sales to calculate actual
+                              profit. The Owner receives 50%, and 50% enters the Investor pool.
                             </p>
                           </li>
                           <li>
                             <span>3</span>
                             <p>
-                              Verified profit is divided by project units. Your earnings stop at the
-                              post’s maximum offered return.
+                              The Investor pool is divided by project units. Your units receive
+                              their proportional share, limited by the post’s maximum offered
+                              return.
                             </p>
                           </li>
                           <li>

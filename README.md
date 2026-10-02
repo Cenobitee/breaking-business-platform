@@ -47,7 +47,7 @@ Each Owner creates a separate business. Managers, Investors, products, sales, ex
 
 The backend issues signed JWT access tokens. Selecting **Remember me** stores the authenticated session in browser local storage; otherwise, it lasts only for the browser session. Disabling or deleting a managed account prevents its existing JWT from continuing to access protected APIs.
 
-Investment projections are estimates rather than guaranteed returns. Product-linked verified sales and costs determine eligible profit, the configured earnings range limits the projected payout, and funds remain locked until the investment tenure ends.
+Investment projections are estimates rather than guaranteed returns. Product-linked verified sales minus direct product costs determine actual profit. The Owner keeps 50% of that profit, while the other 50% forms the Investor pool and is distributed proportionally by purchased project units. Each Investor's payout remains limited by the maximum earnings percentage configured on the post, and funds remain locked until the investment tenure ends.
 
 ## Run on another computer
 

@@ -15,6 +15,7 @@ export function OperationsDashboard() {
     sales: [],
     users: [],
     investmentRequests: [],
+    productProfits: [],
   })
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -31,13 +32,14 @@ export function OperationsDashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [analytics, sales, users, investmentRequests] = await Promise.all([
+      const [analytics, sales, users, investmentRequests, productProfits] = await Promise.all([
         apiRequest('/analytics/operations'),
         apiRequest('/sales'),
         apiRequest('/users'),
         user.role === 'OWNER' ? apiRequest('/investments/requests/pending') : Promise.resolve([]),
+        user.role === 'OWNER' ? apiRequest('/product-profits') : Promise.resolve([]),
       ])
-      setData({ analytics, sales, users, investmentRequests })
+      setData({ analytics, sales, users, investmentRequests, productProfits })
       setError('')
     } catch (requestError) {
       setError(requestError.message)
@@ -111,7 +113,11 @@ export function OperationsDashboard() {
   }
 
   if (loading) return <p>Loading operations…</p>
-  const { analytics, sales, users, investmentRequests } = data
+  const { analytics, sales, users, investmentRequests, productProfits } = data
+  const trackedProductProfit = productProfits.reduce(
+    (total, product) => total + Number(product.totalProductProfit),
+    0,
+  )
   const unitsSold = sales.reduce((sum, sale) => sum + Number(sale.quantity), 0)
   const productTotals = sales.reduce((totals, sale) => {
     totals[sale.itemName] = (totals[sale.itemName] || 0) + Number(sale.quantity)
@@ -186,18 +192,30 @@ export function OperationsDashboard() {
         <section className="metrics-grid" aria-label="Daily metrics">
           <MetricCard label="Revenue" value={money(analytics.revenue)} context={analytics.date} />
           <MetricCard label="Orders" value={analytics.orderCount} />
-          <MetricCard
-            label={user.role === 'OWNER' ? 'Actual profit today' : 'Average order value'}
-            value={money(
-              user.role === 'OWNER' ? analytics.actualProfit : analytics.averageOrderValue,
-            )}
-            context={
-              user.role === 'OWNER'
-                ? `Sales − ${money(analytics.productCost)} product cost − expenses`
-                : undefined
-            }
-          />
+          {user.role === 'MANAGER' && (
+            <MetricCard label="Average order value" value={money(analytics.averageOrderValue)} />
+          )}
           <MetricCard label="Daily expenses" value={money(analytics.expenses)} />
+        </section>
+      )}
+
+      {user.role === 'OWNER' && analytics && (
+        <section className="owner-profit-split" aria-label="Owner and investor profit split">
+          <article>
+            <small>Actual profit</small>
+            <strong>{money(trackedProductProfit)}</strong>
+            <span>Product sales minus recorded product costs</span>
+          </article>
+          <article className="owner-profit-share">
+            <small>Owner’s profit part (50%)</small>
+            <strong>{money(Math.max(0, trackedProductProfit) / 2)}</strong>
+            <span>Retained by the business Owner</span>
+          </article>
+          <article className="investor-profit-share">
+            <small>Investors’ profit part (50%)</small>
+            <strong>{money(Math.max(0, trackedProductProfit) / 2)}</strong>
+            <span>Distributed by investment units and offer limits</span>
+          </article>
         </section>
       )}
 

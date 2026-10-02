@@ -72,8 +72,8 @@ export function ProductProfitPage() {
           <p className="eyebrow">Owner only</p>
           <h1>Product profit</h1>
           <p>
-            Enter the complete cost of making one item. Profit is calculated automatically from
-            the selling price.
+            Enter the complete cost of making one item. Profit is calculated automatically from the
+            selling price.
           </p>
         </div>
         <div className="product-profit-formula">
@@ -83,13 +83,38 @@ export function ProductProfitPage() {
         </div>
       </header>
 
-      {error && <p className="error-message" role="alert">{error}</p>}
-      {notice && <p className="success-message" role="status">{notice}</p>}
+      {error && (
+        <p className="error-message" role="alert">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="success-message" role="status">
+          {notice}
+        </p>
+      )}
 
       <section className="product-profit-summary" aria-label="Product profit totals">
-        <div><small>Sales revenue</small><strong>{money(totals.revenue)}</strong></div>
-        <div><small>Cost of sold products</small><strong>{money(totals.cost)}</strong></div>
-        <div className="positive"><small>Tracked product profit</small><strong>{money(totals.profit)}</strong></div>
+        <div>
+          <small>Sales revenue</small>
+          <strong>{money(totals.revenue)}</strong>
+        </div>
+        <div>
+          <small>Cost of sold products</small>
+          <strong>{money(totals.cost)}</strong>
+        </div>
+        <div className="positive">
+          <small>Actual profit</small>
+          <strong>{money(totals.profit)}</strong>
+        </div>
+        <div className="owner-profit-part">
+          <small>Owner’s profit part (50%)</small>
+          <strong>{money(Math.max(0, totals.profit) / 2)}</strong>
+        </div>
+        <div className="investor-profit-part">
+          <small>Investors’ profit part (50%)</small>
+          <strong>{money(Math.max(0, totals.profit) / 2)}</strong>
+        </div>
       </section>
 
       <section className="panel product-profit-panel">
@@ -102,7 +127,10 @@ export function ProductProfitPage() {
         </div>
 
         {!products.length ? (
-          <div className="empty-state"><h3>No products yet</h3><p>Add products from Point of Sale first.</p></div>
+          <div className="empty-state">
+            <h3>No products yet</h3>
+            <p>Add products from Point of Sale first.</p>
+          </div>
         ) : (
           <div className="product-profit-list">
             {products.map((product) => {
@@ -112,18 +140,67 @@ export function ProductProfitPage() {
                 <article className="product-profit-row" key={product.productId}>
                   <div className="product-profit-name">
                     <span>{product.productName.slice(0, 1).toUpperCase()}</span>
-                    <div><strong>{product.productName}</strong><small>{product.unitsSold} units sold</small></div>
+                    <div>
+                      <strong>{product.productName}</strong>
+                      <small>{product.unitsSold} units sold</small>
+                    </div>
                   </div>
                   <dl>
-                    <div><dt>Selling price</dt><dd>{money(product.sellingPrice)}</dd></div>
+                    <div>
+                      <dt>Selling price</dt>
+                      <dd>{money(product.sellingPrice)}</dd>
+                    </div>
                     <div className="product-cost-input">
                       <dt>Total cost per item</dt>
-                      <dd><span>৳</span><input aria-label={`Total cost for ${product.productName}`} type="number" min="0" step="0.01" value={costs[product.productId] ?? ''} onChange={(event) => setCosts((current) => ({ ...current, [product.productId]: event.target.value }))} /></dd>
+                      <dd>
+                        <span>৳</span>
+                        <input
+                          aria-label={`Total cost for ${product.productName}`}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={costs[product.productId] ?? ''}
+                          onChange={(event) =>
+                            setCosts((current) => ({
+                              ...current,
+                              [product.productId]: event.target.value,
+                            }))
+                          }
+                        />
+                      </dd>
                     </div>
-                    <div><dt>Profit per item</dt><dd className={draftProfit < 0 ? 'negative' : 'positive'}>{money(draftProfit)}</dd></div>
-                    <div><dt>Total tracked profit</dt><dd className={Number(product.totalProductProfit) < 0 ? 'negative' : 'positive'}>{money(product.totalProductProfit)}</dd></div>
+                    <div>
+                      <dt>Profit per item</dt>
+                      <dd className={draftProfit < 0 ? 'negative' : 'positive'}>
+                        {money(draftProfit)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Actual profit</dt>
+                      <dd
+                        className={Number(product.totalProductProfit) < 0 ? 'negative' : 'positive'}
+                      >
+                        {money(product.totalProductProfit)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Owner’s part (50%)</dt>
+                      <dd className="positive">
+                        {money(Math.max(0, Number(product.totalProductProfit)) / 2)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Investors’ part (50%)</dt>
+                      <dd className="positive">
+                        {money(Math.max(0, Number(product.totalProductProfit)) / 2)}
+                      </dd>
+                    </div>
                   </dl>
-                  <button type="button" onClick={() => saveCost(product)} disabled={savingId === product.productId}>
+                  <button
+                    type="button"
+                    onClick={() => saveCost(product)}
+                    disabled={savingId === product.productId}
+                  >
                     {savingId === product.productId ? 'Saving…' : 'Save cost'}
                   </button>
                 </article>

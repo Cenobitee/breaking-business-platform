@@ -62,6 +62,16 @@ class InvestmentServiceTest {
   }
 
   @Test
+  void actualProductProfitIsSplitEquallyBetweenOwnerAndInvestorPool() {
+    var service = service();
+
+    assertThat(service.distributableProfit(new BigDecimal("10000.00"), new BigDecimal("4000.00")))
+        .isEqualByComparingTo("3000.00");
+    assertThat(service.distributableProfit(new BigDecimal("3000.00"), new BigDecimal("4000.00")))
+        .isEqualByComparingTo("0.00");
+  }
+
+  @Test
   void investorCreatesAPendingRequest() {
     Business business = new Business("Irodori");
     AppUser investor =

@@ -4828,6 +4828,7 @@ th {
   font-size: 1.02rem;
 }
 .owner-dashboard .metrics-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.9rem;
 }
 .owner-dashboard .metric-card {
@@ -4837,6 +4838,41 @@ th {
 }
 .owner-dashboard .metric-card strong {
   letter-spacing: -0.035em;
+}
+.owner-profit-split {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+.owner-profit-split article {
+  min-width: 0;
+  display: grid;
+  gap: 0.35rem;
+  padding: 1.15rem;
+  border: 1px solid #cfe0d5;
+  border-radius: 16px;
+  background: #edf8f1;
+}
+.owner-profit-split small,
+.owner-profit-split span {
+  color: #5f7167;
+}
+.owner-profit-split strong {
+  color: #102f20;
+  font-size: 1.45rem;
+  letter-spacing: -0.035em;
+}
+.owner-profit-split span {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+.owner-profit-split .owner-profit-share {
+  border-color: #bcd8c5;
+  background: #f2f8f4;
+}
+.owner-profit-split .investor-profit-share {
+  border-color: #9fcfb0;
+  background: #e3f5e9;
 }
 .owner-health-card {
   display: grid;
@@ -5215,6 +5251,9 @@ th {
   }
 }
 @media (max-width: 620px) {
+  .owner-profit-split {
+    grid-template-columns: 1fr;
+  }
   .owner-health-card {
     grid-template-columns: 1fr;
   }
@@ -5300,7 +5339,7 @@ th {
 
 .product-profit-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -5321,6 +5360,16 @@ th {
 }
 .product-profit-summary .positive {
   background: #edf8f1;
+}
+.product-profit-summary .owner-profit-part {
+  color: #145b38;
+  border-color: #bdd8c6;
+  background: #f1f8f3;
+}
+.product-profit-summary .investor-profit-part {
+  color: #075f3a;
+  border-color: #9fcdb0;
+  background: #e4f5ea;
 }
 
 .product-profit-panel .panel-title-row > p {
@@ -5368,7 +5417,7 @@ th {
 
 .product-profit-row dl {
   display: grid;
-  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  grid-template-columns: repeat(6, minmax(110px, 1fr));
   gap: 0.65rem;
   margin: 0;
 }
@@ -5419,6 +5468,9 @@ th {
 }
 
 @media (max-width: 1050px) {
+  .product-profit-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
   .product-profit-row {
     grid-template-columns: 1fr;
   }

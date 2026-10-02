@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class InvestmentService {
   private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
+  private static final BigDecimal INVESTOR_PROFIT_SHARE = new BigDecimal("0.50");
   private final InvestmentRequestRepository requests;
   private final InvestmentTransactionRepository transactions;
   private final InvestmentRemovalRepository removals;
@@ -336,9 +337,9 @@ public class InvestmentService {
         cycle.getStatus() == InvestmentCycleStatus.COMPLETED, cycle.getWithdrawnAt());
   }
 
-  private BigDecimal distributableProfit(BigDecimal revenue, BigDecimal costs) {
+  BigDecimal distributableProfit(BigDecimal revenue, BigDecimal costs) {
     BigDecimal verifiedProfit = revenue.subtract(costs).max(BigDecimal.ZERO);
-    return verifiedProfit.multiply(new BigDecimal("0.95")).setScale(2, RoundingMode.HALF_UP);
+    return verifiedProfit.multiply(INVESTOR_PROFIT_SHARE).setScale(2, RoundingMode.HALF_UP);
   }
 
   private BigDecimal eligibleRevenue(InvestmentCycle cycle, Instant start, Instant end) {
